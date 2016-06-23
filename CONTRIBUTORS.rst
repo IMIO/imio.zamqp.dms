@@ -1,0 +1,4 @@
+Contributors
+============
+
+- Stephan Geulette, s.geulette@imio.be
