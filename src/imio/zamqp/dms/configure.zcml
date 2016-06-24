@@ -6,4 +6,12 @@
 
   <includeDependencies package="." />
 
+  <utility component=".consumer.IncomingMailConsumerUtility"
+           name="dms.incomingmail"
+           provides="collective.zamqp.interfaces.IConsumer"/>
+
+  <subscriber for=".interfaces.IIncomingMail
+                   collective.zamqp.interfaces.IMessageArrivedEvent"
+              handler=".consumer.consume_incoming_mails"/>
+
 </configure>
