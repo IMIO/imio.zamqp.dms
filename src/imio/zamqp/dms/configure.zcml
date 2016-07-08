@@ -14,4 +14,12 @@
                    collective.zamqp.interfaces.IMessageArrivedEvent"
               handler=".consumer.consume_incoming_mails"/>
 
+  <utility component=".consumer.OutgoingMailConsumerUtility"
+           name="dms.outgoingmail"
+           provides="collective.zamqp.interfaces.IConsumer"/>
+
+  <subscriber for=".interfaces.IOutgoingMail
+                   collective.zamqp.interfaces.IMessageArrivedEvent"
+              handler=".consumer.consume_outgoing_mails"/>
+
 </configure>

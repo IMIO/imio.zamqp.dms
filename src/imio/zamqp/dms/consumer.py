@@ -60,3 +60,20 @@ class IncomingMail(DMSMainFile):
         self.set_scan_attr(new_file)
         document.reindexObject(idxs=('SearchableText'))
         log.info('file has been updated (scan_id: {0})'.format(new_file.scan_id))
+
+
+class OutgoingMailConsumer(base.DMSConsumer, Consumer):
+    connection_id = 'dms.connection'
+    exchange = 'dms.outgoingmail'
+    marker = interfaces.IOutgoingMail
+    queuename = 'dms.outgoingmail.{0}'
+
+OutgoingMailConsumerUtility = OutgoingMailConsumer()
+
+
+def consume_outgoing_mails(message, event):
+    pass
+    # doc = IncomingMail('incoming-mail', 'dmsincomingmail', message)
+    # doc.create_or_update()
+    # commit()
+    # message.ack()

@@ -6,3 +6,7 @@ from zope.interface import Interface
 
 class IIncomingMail(Interface):
     """Marker interface for incoming mails"""
+
+
+class IOutgoingMail(Interface):
+    """Marker interface for outgoing mails"""
