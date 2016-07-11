@@ -93,6 +93,7 @@ class OutgoingMail(DMSMainFile):
             metadata=self.metadata)
         self.set_scan_attr(main_file)
         document.reindexObject(idxs=('SearchableText'))
+        api.content.transition(obj=document, transition='set_scanned')
 
     def update(self, the_file, obj_file):
         if self.obj.version < getattr(the_file, 'version', 1):
