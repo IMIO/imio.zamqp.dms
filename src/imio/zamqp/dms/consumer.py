@@ -72,8 +72,40 @@ OutgoingMailConsumerUtility = OutgoingMailConsumer()
 
 
 def consume_outgoing_mails(message, event):
-    pass
-    # doc = IncomingMail('incoming-mail', 'dmsincomingmail', message)
-    # doc.create_or_update()
-    # commit()
-    # message.ack()
+    doc = OutgoingMail('outgoing-mail', 'dmsoutgoingmail', message)
+    doc.create_or_update()
+    commit()
+    message.ack()
+
+
+class OutgoingMail(DMSMainFile):
+
+    def create(self, obj_file):
+        if self.scan_fields['scan_date']:
+            self.metadata['outgoing_date'] = self.scan_fields['scan_date']
+        (document, main_file) = createDocument(
+            self.context,
+            self.folder,
+            self.document_type,
+            '',
+            obj_file,
+            owner=self.obj.creator,
+            metadata=self.metadata)
+        self.set_scan_attr(main_file)
+        document.reindexObject(idxs=('SearchableText'))
+
+    def update(self, the_file, obj_file):
+        if self.obj.version < getattr(the_file, 'version', 1):
+            log.info('file not updated due to an oldest version (scan_id: {0})'.format(the_file.scan_id))
+            return
+        api.content.delete(obj=the_file)
+        document = the_file.aq_parent
+        # dont modify id !
+        del self.metadata['id']
+        for key, value in self.metadata.items():
+            if base_hasattr(document, key) and value:
+                setattr(document, key, value)
+        new_file = self._upload_file(document, obj_file)
+        self.set_scan_attr(new_file)
+        document.reindexObject(idxs=('SearchableText'))
+        log.info('file has been updated (scan_id: {0})'.format(new_file.scan_id))

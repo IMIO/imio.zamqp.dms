@@ -41,7 +41,6 @@ setup(
         'plone.api',
         'Products.GenericSetup>=1.8.2',
         'setuptools',
-        'z3c.jbot',
         'imio.zamqp.core'
     ],
     extras_require={
