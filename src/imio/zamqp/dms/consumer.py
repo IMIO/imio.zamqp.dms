@@ -68,6 +68,8 @@ class OutgoingMailConsumer(base.DMSConsumer, Consumer):
     exchange = 'dms.outgoingmail'
     marker = interfaces.IOutgoingMail
     queuename = 'dms.outgoingmail.{0}'
+    client_id_var = 'client_id1'
+    routing_key_var = 'routing_key1'
 
 OutgoingMailConsumerUtility = OutgoingMailConsumer()
 
