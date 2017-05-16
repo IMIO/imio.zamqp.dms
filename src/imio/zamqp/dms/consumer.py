@@ -49,8 +49,9 @@ class IncomingMail(DMSMainFile):
         if self.obj.version < getattr(the_file, 'version', 1):
             log.info('file not updated due to an oldest version (scan_id: {0})'.format(the_file.scan_id))
             return
-        api.content.delete(obj=the_file)
         document = the_file.aq_parent
+        #### TEST STATE
+        api.content.delete(obj=the_file)
         # dont modify id !
         del self.metadata['id']
         for key, value in self.metadata.items():
@@ -89,10 +90,12 @@ class OutgoingMail(DMSMainFile):
             self.document_type,
             '',
             obj_file,
+            mainfile_type='dmsommainfile',
             owner=self.obj.creator,
             metadata=self.metadata)
         self.set_scan_attr(main_file)
         document.reindexObject(idxs=('SearchableText'))
+        # MANAGE signed: to True ?
         api.content.transition(obj=document, transition='set_scanned')
 
     def update(self, the_file, obj_file):
@@ -108,5 +111,6 @@ class OutgoingMail(DMSMainFile):
                 setattr(document, key, value)
         new_file = self._upload_file(document, obj_file)
         self.set_scan_attr(new_file)
+        # MANAGE signed: to True ?
         document.reindexObject(idxs=('SearchableText'))
         log.info('file has been updated (scan_id: {0})'.format(new_file.scan_id))
