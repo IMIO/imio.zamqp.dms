@@ -10,3 +10,7 @@ class IIncomingMail(Interface):
 
 class IOutgoingMail(Interface):
     """Marker interface for outgoing mails"""
+
+
+class IOutgoingGeneratedMail(Interface):
+    """Marker interface for outgoing generated mails"""

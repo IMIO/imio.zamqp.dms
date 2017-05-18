@@ -22,4 +22,12 @@
                    collective.zamqp.interfaces.IMessageArrivedEvent"
               handler=".consumer.consume_outgoing_mails"/>
 
+  <utility component=".consumer.OutgoingGeneratedMailConsumerUtility"
+           name="dms.outgoinggeneratedmail"
+           provides="collective.zamqp.interfaces.IConsumer"/>
+
+  <subscriber for=".interfaces.IOutgoingGeneratedMail
+                   collective.zamqp.interfaces.IMessageArrivedEvent"
+              handler=".consumer.consume_outgoing_generated_mails"/>
+
 </configure>
