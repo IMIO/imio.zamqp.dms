@@ -139,8 +139,6 @@ class OutgoingGeneratedMailConsumer(base.DMSConsumer, Consumer):
     exchange = 'dms.outgoinggeneratedmail'
     marker = interfaces.IOutgoingGeneratedMail
     queuename = 'dms.outgoinggeneratedmail.{0}'
-    client_id_var = 'client_id2'
-    routing_key_var = 'routing_key2'
 
 OutgoingGeneratedMailConsumerUtility = OutgoingGeneratedMailConsumer()
 
@@ -160,8 +158,8 @@ class OutgoingGeneratedMail(DMSMainFile):
 
     def create_or_update(self):
         with api.env.adopt_roles(['Manager']):
-            obj_file = self.obj_file
-            the_file = self.existing_file
+            obj_file = self.obj_file  # namedblobfile object
+            the_file = self.existing_file  # dmsfile
             if the_file is None:
                 log.error('file not found (scan_id: {0})'.format(self.scan_fields.get('scan_id')))
                 return
@@ -211,6 +209,7 @@ class OutgoingGeneratedMail(DMSMainFile):
                 transitions(self.document, trans.get(api.content.get_state(self.document), []))
 
     def create(self, obj_file):
+        # create a new dmsfile
         document = self.document
         main_file = self._upload_file(document, obj_file)
         self.scan_fields['signed'] = True
@@ -219,6 +218,7 @@ class OutgoingGeneratedMail(DMSMainFile):
         log.info('file has been created (scan_id: {0})'.format(main_file.scan_id))
 
     def update(self, the_file, obj_file):
+        # replace an existing dmsfile
         if self.obj.version < getattr(the_file, 'version', 1):
             log.info('file not updated due to an oldest version (scan_id: {0})'.format(the_file.scan_id))
             return
