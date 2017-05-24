@@ -34,6 +34,7 @@ def consume_incoming_mails(message, event):
 class IncomingMail(DMSMainFile):
 
     def create(self, obj_file):
+        # create a new im when barcode isn't found in catalog
         if self.scan_fields['scan_date']:
             self.metadata['reception_date'] = self.scan_fields['scan_date']
         if 'recipient_groups' not in self.metadata:
@@ -50,6 +51,7 @@ class IncomingMail(DMSMainFile):
         document.reindexObject(idxs=('SearchableText'))
 
     def update(self, the_file, obj_file):
+        # update dmsfile when barcode is found in catalog
         if self.obj.version < getattr(the_file, 'version', 1):
             log.info('file not updated due to an oldest version (scan_id: {0})'.format(the_file.scan_id))
             return
@@ -74,8 +76,6 @@ class OutgoingMailConsumer(base.DMSConsumer, Consumer):
     exchange = 'dms.outgoingmail'
     marker = interfaces.IOutgoingMail
     queuename = 'dms.outgoingmail.{0}'
-    client_id_var = 'client_id1'
-    routing_key_var = 'routing_key1'
 
 OutgoingMailConsumerUtility = OutgoingMailConsumer()
 
@@ -94,6 +94,7 @@ class OutgoingMail(DMSMainFile):
         return 'dmsommainfile'
 
     def create(self, obj_file):
+        # create a new om when barcode isn't found in catalog
         if self.scan_fields['scan_date']:
             self.metadata['outgoing_date'] = self.scan_fields['scan_date'].date()
         (document, main_file) = createDocument(
@@ -106,12 +107,13 @@ class OutgoingMail(DMSMainFile):
             owner=self.obj.creator,
             metadata=self.metadata)
         # MANAGE signed: to True ?
-        #self.scan_fields['signed'] = False
+        self.scan_fields['signed'] = True
         self.set_scan_attr(main_file)
         document.reindexObject(idxs=('SearchableText'))
         api.content.transition(obj=document, transition='set_scanned')
 
     def update(self, the_file, obj_file):
+        # update dmsfile when barcode is found in catalog
         if self.obj.version < getattr(the_file, 'version', 1):
             log.info('file not updated due to an oldest version (scan_id: {0})'.format(the_file.scan_id))
             return
@@ -124,7 +126,7 @@ class OutgoingMail(DMSMainFile):
                 setattr(document, key, value)
         new_file = self._upload_file(document, obj_file)
         # MANAGE signed: to True ?
-        #self.scan_fields['signed'] = False
+        self.scan_fields['signed'] = True
         self.set_scan_attr(new_file)
         document.reindexObject(idxs=('SearchableText'))
         log.info('file has been updated (scan_id: {0})'.format(new_file.scan_id))
