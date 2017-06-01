@@ -14,7 +14,7 @@ long_description = '\n\n'.join([
 
 setup(
     name='imio.zamqp.dms',
-    version='1.0a1',
+    version='0.1',
     description="zamqp consumer for imio.dms.mail",
     long_description=long_description,
     # Get more from https://pypi.python.org/pypi?%3Aaction=list_classifiers
