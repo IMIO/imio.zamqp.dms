@@ -5,8 +5,6 @@ Changelog
 1.0a1 (unreleased)
 ------------------
 
-- Made client_id specific for outgoingmail consumer
-  [sgeulette]
 - Added OutgoingMailConsumer
   [sgeulette]
 - Added OutgoingGeneratedMailConsumer

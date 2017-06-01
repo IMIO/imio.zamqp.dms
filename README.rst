@@ -6,25 +6,20 @@
 imio.zamqp.dms
 ==============================================================================
 
-Tell me what your product does
+Consume some queues to create incoming and ougoing mails
 
 Features
 --------
 
-- Can be bullet points
-
-
-Examples
---------
-
-This add-on can be seen in action at the following sites:
-- Is there a page on the internet where everybody can see the features?
+- Get documents to create incoming mails
+- Get documents to create outgoing mails
+- Get documents to add a signed version in existing outgoing mails
 
 
 Documentation
 -------------
 
-Full documentation for end users can be found in the "docs" folder, and is also available online at http://docs.plone.org/foo/bar
+Full documentation in the code ;-)
 
 
 Translations
@@ -32,7 +27,7 @@ Translations
 
 This product has been translated into
 
-- Klingon (thanks, K'Plai)
+- French
 
 
 Installation
@@ -54,9 +49,8 @@ and then running ``bin/buildout``
 Contribute
 ----------
 
-- Issue Tracker: https://github.com/collective/imio.zamqp.dms/issues
-- Source Code: https://github.com/collective/imio.zamqp.dms
-- Documentation: https://docs.plone.org/foo/bar
+- Issue Tracker: https://github.com/IMIO/imio.zamqp.dms/issues
+- Source Code: https://github.com/IMIO/imio.zamqp.dms
 
 
 Support
