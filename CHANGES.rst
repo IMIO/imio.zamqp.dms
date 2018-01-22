@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.2 (unreleased)
+0.2 (2018-01-22)
 ----------------
 
 - Replaced file_portal_type by file_portal_types (list).
