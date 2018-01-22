@@ -8,7 +8,7 @@ from collective.dms.batchimport.utils import createDocument, log
 from collective.zamqp.consumer import Consumer
 from imio.helpers.content import transitions
 from imio.zamqp.core import base
-from imio.zamqp.core.consumer import DMSMainFile, commit
+from imio.zamqp.core.consumer import DMSMainFile, consume
 
 import interfaces
 
@@ -25,10 +25,7 @@ IncomingMailConsumerUtility = IncomingMailConsumer()
 
 
 def consume_incoming_mails(message, event):
-    doc = IncomingMail('incoming-mail', 'dmsincomingmail', message)
-    doc.create_or_update()
-    commit()
-    message.ack()
+    consume(IncomingMail, 'incoming-mail', 'dmsincomingmail', message)
 
 
 class IncomingMail(DMSMainFile):
@@ -81,17 +78,14 @@ OutgoingMailConsumerUtility = OutgoingMailConsumer()
 
 
 def consume_outgoing_mails(message, event):
-    doc = OutgoingMail('outgoing-mail', 'dmsoutgoingmail', message)
-    doc.create_or_update()
-    commit()
-    message.ack()
+    consume(OutgoingMail, 'outgoing-mail', 'dmsoutgoingmail', message)
 
 
 class OutgoingMail(DMSMainFile):
 
     @property
-    def file_portal_type(self):
-        return 'dmsommainfile'
+    def file_portal_types(self):
+        return ['dmsommainfile']
 
     def create(self, obj_file):
         # create a new om when barcode isn't found in catalog
@@ -144,17 +138,14 @@ OutgoingGeneratedMailConsumerUtility = OutgoingGeneratedMailConsumer()
 
 
 def consume_outgoing_generated_mails(message, event):
-    doc = OutgoingGeneratedMail('outgoing-mail', 'dmsoutgoingmail', message)
-    doc.create_or_update()
-    commit()
-    message.ack()
+    consume(OutgoingGeneratedMail, 'outgoing-mail', 'dmsoutgoingmail', message)
 
 
 class OutgoingGeneratedMail(DMSMainFile):
 
     @property
-    def file_portal_type(self):
-        return 'dmsommainfile'
+    def file_portal_types(self):
+        return ['dmsommainfile']
 
     def create_or_update(self):
         with api.env.adopt_roles(['Manager']):
@@ -202,7 +193,7 @@ class OutgoingGeneratedMail(DMSMainFile):
             if not params['PC']:
                 # close
                 trans = {
-                    'created': ['set_scanned', 'mark_as_sent'], 'scanned': ['set_scanned'],
+                    'created': ['set_scanned', 'mark_as_sent'], 'scanned': [],
                     'proposed_to_service_chief': ['propose_to_be_signed', 'mark_as_sent'],
                     'to_be_signed': ['mark_as_sent'], 'to_print': ['propose_to_be_signed', 'mark_as_sent']
                 }

@@ -5,8 +5,12 @@ Changelog
 0.2 (unreleased)
 ----------------
 
-- Nothing changed yet.
-
+- Replaced file_portal_type by file_portal_types (list).
+  [sgeulette]
+- No more use commit function but generic consume
+  [sgeulette]
+- Removed useless transition
+  [sgeulette]
 
 0.1 (2017-06-01)
 ----------------
