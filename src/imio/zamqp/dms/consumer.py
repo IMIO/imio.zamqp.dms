@@ -187,8 +187,8 @@ class OutgoingGeneratedMail(DMSMainFile):
                 # register scan date on original model
                 the_file.scan_date = self.scan_fields['scan_date']
             if not params['PD']:
-                self.document.outgoing_date = (self.scan_fields['scan_date'] and self.scan_fields['scan_date'].date() or
-                                               datetime.date.today())
+                self.document.outgoing_date = (self.scan_fields['scan_date'] and self.scan_fields['scan_date'] or
+                                               datetime.datetime.now())
                 self.document.reindexObject(idxs=('in_out_date'))
             if not params['PC']:
                 # close

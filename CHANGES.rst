@@ -5,8 +5,8 @@ Changelog
 0.4 (unreleased)
 ----------------
 
-- Nothing changed yet.
-
+- Changed outgoing date value in OutgoingGeneratedMail consumer.
+  [sgeulette]
 
 0.3 (2018-01-24)
 ----------------
