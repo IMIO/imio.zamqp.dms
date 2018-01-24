@@ -5,8 +5,8 @@ Changelog
 0.3 (unreleased)
 ----------------
 
-- Nothing changed yet.
-
+- Set datetime value in outgoing date.
+  [sgeulette]
 
 0.2 (2018-01-22)
 ----------------

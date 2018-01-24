@@ -90,7 +90,7 @@ class OutgoingMail(DMSMainFile):
     def create(self, obj_file):
         # create a new om when barcode isn't found in catalog
         if self.scan_fields['scan_date']:
-            self.metadata['outgoing_date'] = self.scan_fields['scan_date'].date()
+            self.metadata['outgoing_date'] = self.scan_fields['scan_date']
         (document, main_file) = createDocument(
             self.context,
             self.folder,
