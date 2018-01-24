@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.4 (unreleased)
+0.4 (2018-01-24)
 ----------------
 
 - Changed outgoing date value in OutgoingGeneratedMail consumer.
