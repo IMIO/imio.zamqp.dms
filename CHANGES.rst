@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.3 (unreleased)
+0.3 (2018-01-24)
 ----------------
 
 - Set datetime value in outgoing date.
