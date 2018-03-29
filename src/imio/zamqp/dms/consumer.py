@@ -104,7 +104,8 @@ class OutgoingMail(DMSMainFile):
         self.scan_fields['signed'] = True
         self.set_scan_attr(main_file)
         document.reindexObject(idxs=('SearchableText'))
-        api.content.transition(obj=document, transition='set_scanned')
+        with api.env.adopt_user(username='scanner'):
+            api.content.transition(obj=document, transition='set_scanned')
 
     def update(self, the_file, obj_file):
         # update dmsfile when barcode is found in catalog

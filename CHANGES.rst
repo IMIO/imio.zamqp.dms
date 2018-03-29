@@ -5,8 +5,8 @@ Changelog
 0.5 (unreleased)
 ----------------
 
-- Nothing changed yet.
-
+- Use scanner role to do 'set_scanned' transition.
+  [sgeulette]
 
 0.4 (2018-01-24)
 ----------------
