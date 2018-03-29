@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.5 (unreleased)
+0.5 (2018-03-29)
 ----------------
 
 - Use scanner role to do 'set_scanned' transition.
