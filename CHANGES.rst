@@ -5,8 +5,8 @@ Changelog
 0.6 (unreleased)
 ----------------
 
-- Nothing changed yet.
-
+- Search differently existing file for OutgoingGeneratedMail.
+  [sgeulette]
 
 0.5 (2018-03-29)
 ----------------

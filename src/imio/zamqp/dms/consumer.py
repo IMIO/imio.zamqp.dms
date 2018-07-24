@@ -148,6 +148,18 @@ class OutgoingGeneratedMail(DMSMainFile):
     def file_portal_types(self):
         return ['dmsommainfile']
 
+    @property
+    def existing_file(self):
+        result = self.site.portal_catalog(
+            portal_type=self.file_portal_types,
+            scan_id=self.scan_fields.get('scan_id'),
+            signed=False,
+            sort_on='created',
+            sort_order='descending'
+        )
+        if result:
+            return result[0].getObject()
+
     def create_or_update(self):
         with api.env.adopt_roles(['Manager']):
             obj_file = self.obj_file  # namedblobfile object
