@@ -1,16 +1,20 @@
 # encoding: utf-8
 
-import datetime
-from plone import api
-from Products.CMFPlone.utils import base_hasattr
-
-from collective.dms.batchimport.utils import createDocument, log
+from collective.dms.batchimport.utils import createDocument
+from collective.dms.batchimport.utils import log
 from collective.zamqp.consumer import Consumer
 from imio.helpers.content import transitions
 from imio.zamqp.core import base
-from imio.zamqp.core.consumer import DMSMainFile, consume
+from imio.zamqp.core.consumer import consume
+from imio.zamqp.core.consumer import DMSMainFile
+from plone import api
+from Products.CMFPlone.utils import base_hasattr
 
+import datetime
 import interfaces
+
+
+cg_separator = ' ___ '
 
 # INCOMING MAILS #
 
@@ -28,7 +32,20 @@ def consume_incoming_mails(message, event):
     consume(IncomingMail, 'incoming-mail', 'dmsincomingmail', message)
 
 
-class IncomingMail(DMSMainFile):
+class CommonMethods(object):
+
+    def creating_group_split(self):
+        # we manage optional fields (1.3 schema)
+        file_metadata = self.obj.context.file_metadata
+        for metadata, attr in (('creating_group', 'creating_group'), ('treating_group', 'treating_groups')):
+            if not file_metadata.get(metadata, ''):
+                continue
+            parts = file_metadata[metadata].split(cg_separator)
+            if len(parts) > 1:
+                self.metadata[attr] = parts[1].strip()
+
+
+class IncomingMail(DMSMainFile, CommonMethods):
 
     def create(self, obj_file):
         # create a new im when barcode isn't found in catalog
@@ -36,6 +53,7 @@ class IncomingMail(DMSMainFile):
             self.metadata['reception_date'] = self.scan_fields['scan_date']
         if 'recipient_groups' not in self.metadata:
             self.metadata['recipient_groups'] = []
+        self.creating_group_split()
         (document, main_file) = createDocument(
             self.context,
             self.folder,
@@ -91,6 +109,7 @@ class OutgoingMail(DMSMainFile):
         # create a new om when barcode isn't found in catalog
         if self.scan_fields['scan_date']:
             self.metadata['outgoing_date'] = self.scan_fields['scan_date']
+        self.creating_group_split()
         (document, main_file) = createDocument(
             self.context,
             self.folder,
@@ -142,7 +161,7 @@ def consume_outgoing_generated_mails(message, event):
     consume(OutgoingGeneratedMail, 'outgoing-mail', 'dmsoutgoingmail', message)
 
 
-class OutgoingGeneratedMail(DMSMainFile):
+class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
 
     @property
     def file_portal_types(self):

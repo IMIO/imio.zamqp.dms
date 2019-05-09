@@ -5,8 +5,8 @@ Changelog
 0.7 (unreleased)
 ----------------
 
-- Nothing changed yet.
-
+- Managed creating_group and treating_group metadatas.
+  [sgeulette]
 
 0.6 (2018-07-24)
 ----------------
