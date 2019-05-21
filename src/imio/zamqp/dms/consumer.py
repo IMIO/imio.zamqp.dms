@@ -99,7 +99,7 @@ def consume_outgoing_mails(message, event):
     consume(OutgoingMail, 'outgoing-mail', 'dmsoutgoingmail', message)
 
 
-class OutgoingMail(DMSMainFile):
+class OutgoingMail(DMSMainFile, CommonMethods):
 
     @property
     def file_portal_types(self):
