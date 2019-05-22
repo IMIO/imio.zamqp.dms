@@ -2,16 +2,23 @@
 
 from collective.dms.batchimport.utils import createDocument
 from collective.dms.batchimport.utils import log
+from collective.dms.mailcontent.dmsmail import internalReferenceIncomingMailDefaultValue
+from collective.dms.mailcontent.dmsmail import receptionDateDefaultValue
 from collective.zamqp.consumer import Consumer
 from imio.helpers.content import transitions
 from imio.zamqp.core import base
 from imio.zamqp.core.consumer import consume
 from imio.zamqp.core.consumer import DMSMainFile
+from io import BytesIO
 from plone import api
+from plone.dexterity.utils import createContentInContainer
+from plone.namedfile.file import NamedBlobFile
 from Products.CMFPlone.utils import base_hasattr
 
 import datetime
 import interfaces
+import json
+import tarfile
 
 
 cg_separator = ' ___ '
@@ -252,3 +259,70 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
         self.set_scan_attr(new_file)
         document.reindexObject(idxs=('SearchableText'))
         log.info('file has been updated (scan_id: {0})'.format(new_file.scan_id))
+
+
+# INCOMING EMAILS #
+
+
+class IncomingEmailConsumer(base.DMSConsumer, Consumer):
+    connection_id = 'dms.connection'
+    exchange = 'dms.incoming.email'
+    marker = interfaces.IIncomingEmail
+    queuename = 'dms.incoming.email.{0}'
+
+
+IncomingEmailConsumerUtility = IncomingEmailConsumer()
+
+
+def consume_incoming_emails(message, event):
+    consume(IncomingEmail, 'incoming-mail', 'dmsincoming_email', message)
+
+
+class IncomingEmail(DMSMainFile, CommonMethods):
+
+    def extract_tar(self, archive_content):
+        archive_file = BytesIO(archive_content)
+        tar = tarfile.open(fileobj=archive_file)
+        pdf = tar.extractfile('email.pdf').read()
+        metadata = json.loads(tar.extractfile('metadata.json').read())
+        attachments = [
+            {'filename': member.path.decode('utf8').split('/')[-1],
+             'content': tar.extractfile(member).read()}
+            for member in tar.getmembers()
+            if member.path.startswith("/attachments/")
+        ]
+        return pdf, metadata, attachments
+
+    def create_or_update(self):
+        pdf, metadata, attachments = self.extract_tar(self.file_content)
+
+        metadata['title'] = metadata['Subject']
+        file_title = 'Incoming email'
+        if 'internal_reference_no' not in metadata:
+            metadata['internal_reference_no'] = internalReferenceIncomingMailDefaultValue(self.context)
+        if 'reception_date' not in metadata:
+            metadata['reception_date'] = receptionDateDefaultValue(self.context)
+        owner = api.user.get_current().id
+        with api.env.adopt_user(username=owner):
+            document = createContentInContainer(self.folder, 'dmsincoming_email', **metadata)
+            log.info('document has been created (id: %s)' % document.id)
+
+            file_object = NamedBlobFile(
+                pdf,
+                filename=u'email.pdf')
+            version = createContentInContainer(
+                document,
+                'dmsmainfile',
+                title=file_title,
+                file=file_object)
+
+            for attachment in attachments:
+                file_object = NamedBlobFile(
+                    attachment['content'],
+                    filename=attachment['filename'])
+                version = createContentInContainer(
+                    document,
+                    'dmsappendixfile',
+                    title=attachment['filename'],
+                    file=file_object)
+                log.info('file document has been created (id: %s)' % version.id)

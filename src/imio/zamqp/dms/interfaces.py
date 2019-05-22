@@ -14,3 +14,7 @@ class IOutgoingMail(Interface):
 
 class IOutgoingGeneratedMail(Interface):
     """Marker interface for outgoing generated mails"""
+
+
+class IIncomingEmail(Interface):
+    """Marker interface for incoming emails"""
