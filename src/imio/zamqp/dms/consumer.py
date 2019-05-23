@@ -16,6 +16,9 @@ from plone import api
 from plone.dexterity.utils import createContentInContainer
 from plone.namedfile.file import NamedBlobFile
 from Products.CMFPlone.utils import base_hasattr
+from z3c.relationfield.relation import RelationValue
+from zope.component import getUtility
+from zope.intid.interfaces import IIntIds
 
 import datetime
 import interfaces
@@ -305,34 +308,35 @@ class IncomingEmail(DMSMainFile, CommonMethods):
         if 'reception_date' not in metadata:
             metadata['reception_date'] = receptionDateDefaultValue(self.context)
 
+        intids = getUtility(IIntIds)
         owner = api.user.get_current().id
         with api.env.adopt_user(username=owner):
             document = createContentInContainer(self.folder, 'dmsincoming_email', **metadata)
             log.info('document has been created (id: %s)' % document.id)
             catalog = api.portal.get_tool('portal_catalog')
-
             # TODO: sender (all contacts with the "From" email)
             if metadata.get('From'):
                 from_email = metadata['From'][0][1]
                 results = catalog.unrestrictedSearchResults(email=from_email)
                 if results:
-                    document.sender = [brain.getObject() for brain in results]
+                    document.sender = [RelationValue(intids.getId(brain.getObject())) for brain in results]
 
             # TODO: treating_groups (agent internal service, if there is one)
             # TODO: assigned_user (agent user; only if treating_groups assigned)
             if metadata.get('Agent'):
                 agent_email = metadata['Agent'][0][1]
-                results = catalog.unrestrictedSearchResults(email=agent_email)
+                results = catalog.unrestrictedSearchResults(email=agent_email, portal_type='person',
+                                                            object_provides=['imio.dms.mail.interfaces.IPersonnelContact'])
                 for brain in results:
                     contact = brain.getObject()
                     userid = contact.userid
                     if userid:
-                        groups = api.group.get_groups(userid=userid)
+                        groups = api.group.get_groups(username=userid)
                         agent_orgs = organizations_with_suffixes(groups, ['validateur', 'editeur'])
                         active_orgs = get_registry_organizations()
                         agent_active_orgs = [org for org in agent_orgs if org in active_orgs]
                         if agent_active_orgs:
-                            document.treating_groups = agent_active_orgs
+                            document.treating_groups = agent_active_orgs[0]  # TAKE FIRST ??
                             document.assigned_user = userid
                             break
 
