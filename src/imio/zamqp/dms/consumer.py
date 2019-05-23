@@ -1,5 +1,7 @@
 # encoding: utf-8
 
+from collective.contact.plonegroup.config import get_registry_organizations
+from collective.contact.plonegroup.utils import organizations_with_suffixes
 from collective.dms.batchimport.utils import createDocument
 from collective.dms.batchimport.utils import log
 from collective.dms.mailcontent.dmsmail import internalReferenceIncomingMailDefaultValue
@@ -302,10 +304,43 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             metadata['internal_reference_no'] = internalReferenceIncomingMailDefaultValue(self.context)
         if 'reception_date' not in metadata:
             metadata['reception_date'] = receptionDateDefaultValue(self.context)
+
         owner = api.user.get_current().id
         with api.env.adopt_user(username=owner):
             document = createContentInContainer(self.folder, 'dmsincoming_email', **metadata)
             log.info('document has been created (id: %s)' % document.id)
+            catalog = api.portal.get_tool('portal_catalog')
+
+            # TODO: sender (all contacts with the "From" email)
+            if metadata.get('From'):
+                from_email = metadata['From'][0][1]
+                results = catalog.unrestrictedSearchResults(email=from_email)
+                if results:
+                    document.sender = [brain.getObject() for brain in results]
+
+            # TODO: treating_groups (agent internal service, if there is one)
+            # TODO: assigned_user (agent user; only if treating_groups assigned)
+            if metadata.get('Agent'):
+                agent_email = metadata['Agent'][0][1]
+                results = catalog.unrestrictedSearchResults(email=agent_email)
+                for brain in results:
+                    contact = brain.getObject()
+                    userid = contact.userid
+                    if userid:
+                        groups = api.group.get_groups(userid=userid)
+                        agent_orgs = organizations_with_suffixes(groups, ['validateur', 'editeur'])
+                        active_orgs = get_registry_organizations()
+                        agent_active_orgs = [org for org in agent_orgs if org in active_orgs]
+                        if agent_active_orgs:
+                            document.treating_groups = agent_active_orgs
+                            document.assigned_user = userid
+                            break
+
+            # TODO: recipient_groups (internal services of agents in "To" or "Cc")
+
+            # TODO: original_mail_date (sent date of EML email)
+
+            # TODO: reception_date (transfer date to WS)
 
             file_object = NamedBlobFile(
                 pdf,
