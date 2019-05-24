@@ -19,6 +19,7 @@ from Products.CMFPlone.utils import base_hasattr
 from z3c.relationfield.relation import RelationValue
 from zope.component import getUtility
 from zope.intid.interfaces import IIntIds
+from zope.schema.interfaces import IVocabularyFactory
 
 import datetime
 import interfaces
@@ -49,12 +50,19 @@ class CommonMethods(object):
     def creating_group_split(self):
         # we manage optional fields (1.3 schema)
         file_metadata = self.obj.context.file_metadata
-        for metadata, attr in (('creating_group', 'creating_group'), ('treating_group', 'treating_groups')):
+        for metadata, attr, voc in (('creating_group', 'creating_group',
+                                     u'imio.dms.mail.ActiveCreatingGroupVocabulary'),
+                                    ('treating_group', 'treating_groups',
+                                     u'collective.dms.basecontent.treating_groups')):
             if not file_metadata.get(metadata, ''):
                 continue
             parts = file_metadata[metadata].split(cg_separator)
             if len(parts) > 1:
                 self.metadata[attr] = parts[1].strip()
+            factory = getUtility(IVocabularyFactory, voc)
+            voc_i = factory(self.folder)
+            if self.metadata[attr] not in [term.value for term in voc_i._terms]:
+                del self.metadata[attr]
 
 
 class IncomingMail(DMSMainFile, CommonMethods):

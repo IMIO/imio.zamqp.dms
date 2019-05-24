@@ -7,6 +7,8 @@ Changelog
 
 - Managed creating_group and treating_group metadatas.
   [sgeulette]
+- Added consumer for dmsincoming_email type
+  [daggelpop,sgeulette]
 
 0.6 (2018-07-24)
 ----------------
