@@ -322,15 +322,16 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             document = createContentInContainer(self.folder, 'dmsincoming_email', **metadata)
             log.info('document has been created (id: %s)' % document.id)
             catalog = api.portal.get_tool('portal_catalog')
-            # TODO: sender (all contacts with the "From" email)
+
+            # sender (all contacts with the "From" email)
             if metadata.get('From'):
                 from_email = metadata['From'][0][1]
                 results = catalog.unrestrictedSearchResults(email=from_email)
                 if results:
                     document.sender = [RelationValue(intids.getId(brain.getObject())) for brain in results]
 
-            # TODO: treating_groups (agent internal service, if there is one)
-            # TODO: assigned_user (agent user; only if treating_groups assigned)
+            # treating_groups (agent internal service, if there is one)
+            # assigned_user (agent user; only if treating_groups assigned)
             if metadata.get('Agent'):
                 agent_email = metadata['Agent'][0][1]
                 results = catalog.unrestrictedSearchResults(email=agent_email, portal_type='person',
@@ -344,15 +345,17 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                         active_orgs = get_registry_organizations()
                         agent_active_orgs = [org for org in agent_orgs if org in active_orgs]
                         if agent_active_orgs:
-                            document.treating_groups = agent_active_orgs[0]  # TAKE FIRST ??
+                            document.treating_groups = agent_active_orgs[0]  # only take one
                             document.assigned_user = userid
                             break
 
-            # TODO: recipient_groups (internal services of agents in "To" or "Cc")
-
-            # TODO: original_mail_date (sent date of EML email)
-
-            # TODO: reception_date (transfer date to WS)
+            # original_mail_date (sent date of relevant email)
+            if metadata.get('Original mail date'):
+                parsed_original_date = datetime.datetime.strptime(
+                    metadata.get('Original mail date'),
+                    '%Y-%m-%d',
+                )
+                document.original_mail_date = parsed_original_date
 
             file_object = NamedBlobFile(
                 pdf,
