@@ -357,6 +357,9 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 )
                 document.original_mail_date = parsed_original_date
 
+            if document.treating_groups and document.assigned_user:
+                api.content.transition(obj=document, transition='propose_to_service_chief')
+
             file_object = NamedBlobFile(
                 pdf,
                 filename=u'email.pdf')
