@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.7 (unreleased)
+0.7 (2019-11-25)
 ----------------
 
 - Managed creating_group and treating_group metadatas.
