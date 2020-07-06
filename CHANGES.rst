@@ -5,8 +5,8 @@ Changelog
 0.8 (unreleased)
 ----------------
 
-- Nothing changed yet.
-
+- Corrected available created transitions in OutgoingGeneratedMail.
+  [sgeulette]
 
 0.7 (2019-11-25)
 ----------------

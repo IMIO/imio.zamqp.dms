@@ -245,11 +245,16 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
             if not params['PC']:
                 # close
                 trans = {
-                    'created': ['set_scanned', 'mark_as_sent'], 'scanned': [],
+                    'created': ['propose_to_service_chief', 'propose_to_be_signed', 'mark_as_sent'], 'scanned': [],
                     'proposed_to_service_chief': ['propose_to_be_signed', 'mark_as_sent'],
                     'to_be_signed': ['mark_as_sent'], 'to_print': ['propose_to_be_signed', 'mark_as_sent']
                 }
-                transitions(self.document, trans.get(api.content.get_state(self.document), []))
+                state = api.content.get_state(self.document)
+                i = 0
+                while state != 'sent' and i < 10:
+                    transitions(self.document, trans.get(state, []))
+                    state = api.content.get_state(self.document)
+                    i += 1
 
     def create(self, obj_file):
         # create a new dmsfile
