@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.8 (unreleased)
+0.8 (2020-10-07)
 ----------------
 
 - Corrected available created transitions in OutgoingGeneratedMail.
