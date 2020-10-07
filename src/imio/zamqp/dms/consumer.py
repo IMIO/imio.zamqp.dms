@@ -245,8 +245,8 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
             if not params['PC']:
                 # close
                 trans = {
-                    'created': ['propose_to_service_chief', 'propose_to_be_signed', 'mark_as_sent'], 'scanned': [],
-                    'proposed_to_service_chief': ['propose_to_be_signed', 'mark_as_sent'],
+                    'created': ['propose_to_be_signed', 'mark_as_sent'], 'scanned': [],
+                    'proposed_to_n_plus_1': ['propose_to_be_signed', 'mark_as_sent'],
                     'to_be_signed': ['mark_as_sent'], 'to_print': ['propose_to_be_signed', 'mark_as_sent']
                 }
                 state = api.content.get_state(self.document)
@@ -363,7 +363,8 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 document.original_mail_date = parsed_original_date
 
             if document.treating_groups and document.assigned_user:
-                api.content.transition(obj=document, transition='propose_to_service_chief')
+                # TODO maybe multiple levels !! and directly to agent ?
+                api.content.transition(obj=document, transition='propose_to_n_plus_1')
 
             file_object = NamedBlobFile(
                 pdf,

@@ -7,6 +7,8 @@ Changelog
 
 - Corrected available created transitions in OutgoingGeneratedMail.
   [sgeulette]
+- Replaced service_chief by n_plus_1
+  [sgeulette]
 
 0.7 (2019-11-25)
 ----------------
