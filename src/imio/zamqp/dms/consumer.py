@@ -364,8 +364,15 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 document.original_mail_date = parsed_original_date
 
             if document.treating_groups and document.assigned_user:
-                # TODO maybe multiple levels !! and directly to agent ?
-                api.content.transition(obj=document, transition='propose_to_n_plus_1')
+                # TODO directly to agent ?
+                i = 0
+                state = api.content.get_state(document)
+                while state != 'proposed_to_agent' and i < 10:
+                    transitions(document, ['propose_to_agent', 'propose_to_n_plus_1', 'propose_to_n_plus_2',
+                                           'propose_to_n_plus_3', 'propose_to_n_plus_4', 'propose_to_n_plus_5',
+                                           'propose_to_manager', 'propose_to_pre_manager'])
+                    state = api.content.get_state(document)
+                    i += 1
 
             file_object = NamedBlobFile(
                 pdf,
