@@ -7,7 +7,9 @@ from collective.dms.batchimport.utils import log
 from collective.dms.mailcontent.dmsmail import internalReferenceIncomingMailDefaultValue
 from collective.dms.mailcontent.dmsmail import receptionDateDefaultValue
 from collective.zamqp.consumer import Consumer
+from imio.dms.mail import IM_EDITOR_SERVICE_FUNCTIONS
 from imio.helpers.content import transitions
+from imio.helpers.security import get_user_from_criteria
 from imio.zamqp.core import base
 from imio.zamqp.core.consumer import consume
 from imio.zamqp.core.consumer import DMSMainFile
@@ -37,6 +39,7 @@ class IncomingMailConsumer(base.DMSConsumer, Consumer):
     exchange = 'dms.incomingmail'
     marker = interfaces.IIncomingMail
     queuename = 'dms.incomingmail.{0}'
+
 
 IncomingMailConsumerUtility = IncomingMailConsumer()
 
@@ -112,6 +115,7 @@ class OutgoingMailConsumer(base.DMSConsumer, Consumer):
     marker = interfaces.IOutgoingMail
     queuename = 'dms.outgoingmail.{0}'
 
+
 OutgoingMailConsumerUtility = OutgoingMailConsumer()
 
 
@@ -173,6 +177,7 @@ class OutgoingGeneratedMailConsumer(base.DMSConsumer, Consumer):
     exchange = 'dms.outgoinggeneratedmail'
     marker = interfaces.IOutgoingGeneratedMail
     queuename = 'dms.outgoinggeneratedmail.{0}'
+
 
 OutgoingGeneratedMailConsumerUtility = OutgoingGeneratedMailConsumer()
 
@@ -313,7 +318,12 @@ class IncomingEmail(DMSMainFile, CommonMethods):
 
     def create_or_update(self):
         pdf, metadata, attachments = self.extract_tar(self.file_content)
-
+        # metadata = {u'Origin': u'Agent forward',
+        # u'From': [[u'Fr\xe9d\xe9ric Rasic', u'frasic@imio.be']],
+        # u'Cc': [],
+        # u'Agent': [[u'St\xe9phan Geulette', u'stephan.geulette@imio.be']],
+        # u'To': [[u'tous@imio.be', u'tous@imio.be']],
+        # u'Subject': u'[Tous] Diffusion \xe9lectronique des documents de paie'}
         metadata['title'] = metadata['Subject']
         file_title = 'Incoming email'
         if 'internal_reference_no' not in metadata:
@@ -321,7 +331,9 @@ class IncomingEmail(DMSMainFile, CommonMethods):
         if 'reception_date' not in metadata:
             metadata['reception_date'] = receptionDateDefaultValue(self.context)
 
+        # TODO ajouter le type de courrier entrant email
         intids = getUtility(IIntIds)
+        # TODO vérifier intérêt owner
         owner = api.user.get_current().id
         with api.env.adopt_user(username=owner):
             document = createContentInContainer(self.folder, 'dmsincoming_email', **metadata)
@@ -338,22 +350,23 @@ class IncomingEmail(DMSMainFile, CommonMethods):
 
             # treating_groups (agent internal service, if there is one)
             # assigned_user (agent user; only if treating_groups assigned)
-            if metadata.get('Agent'):
+            if metadata.get('Agent'):  # an agent has forwarded the email
                 agent_email = metadata['Agent'][0][1]
-                results = catalog.unrestrictedSearchResults(email=agent_email, portal_type='person',
-                                                            object_provides=['imio.dms.mail.interfaces.IPersonnelContact'])
-                for brain in results:
-                    contact = brain.getObject()
-                    userid = contact.userid
-                    if userid:
-                        groups = api.group.get_groups(username=userid)
-                        agent_orgs = organizations_with_suffixes(groups, ['validateur', 'editeur'])
-                        active_orgs = get_registry_organizations()
-                        agent_active_orgs = [org for org in agent_orgs if org in active_orgs]
-                        if agent_active_orgs:
-                            document.treating_groups = agent_active_orgs[0]  # only take one
-                            document.assigned_user = userid
-                            break
+                users = get_user_from_criteria(self.site, email=agent_email)
+                active_orgs = get_registry_organizations()
+                for dic in users:
+                    if dic['email'] != agent_email:  # to be sure email is not a part of longer email
+                        continue
+                    userid = dic['userid']
+                    groups = api.group.get_groups(username=userid)
+                    agent_orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS)
+                    agent_active_orgs = [org for org in agent_orgs if org in active_orgs]
+                    if agent_active_orgs:
+                        document.treating_groups = agent_active_orgs[0]  # only take one
+                        document.assigned_user = userid
+                        break
+
+            # TODO ajouter les CC en copie dans la tâche
 
             # original_mail_date (sent date of relevant email)
             if metadata.get('Original mail date'):
@@ -382,6 +395,9 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 'dmsmainfile',
                 title=file_title,
                 file=file_object)
+            # TODO ajouter externalid mais ne pas indexer la fiche
+            # self.set_scan_attr(version)
+            document.reindexObject()
 
             for attachment in attachments:
                 file_object = NamedBlobFile(
