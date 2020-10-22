@@ -330,10 +330,11 @@ class IncomingEmail(DMSMainFile, CommonMethods):
 
             # sender (all contacts with the "From" email)
             if metadata.get('From'):
-                from_email = metadata['From'][0][1]
-                results = catalog.unrestrictedSearchResults(email=from_email)
+                results = catalog.unrestrictedSearchResults(email=metadata['From'][0][1])
                 if results:
                     document.sender = [RelationValue(intids.getId(brain.getObject())) for brain in results]
+                else:
+                    document.description = u"Email envoyé par '{f[0]}', {f[1]}".format(f=metadata['From'][0])
 
             # treating_groups (agent internal service, if there is one)
             # assigned_user (agent user; only if treating_groups assigned)
