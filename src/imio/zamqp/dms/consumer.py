@@ -345,8 +345,6 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 results = catalog.unrestrictedSearchResults(email=metadata['From'][0][1])
                 if results:
                     document.sender = [RelationValue(intids.getId(brain.getObject())) for brain in results]
-                else:
-                    document.description = u"Email envoyé par '{f[0]}', {f[1]}".format(f=metadata['From'][0])
 
             # treating_groups (agent internal service, if there is one)
             # assigned_user (agent user; only if treating_groups assigned)
@@ -365,8 +363,6 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                         document.treating_groups = agent_active_orgs[0]  # only take one
                         document.assigned_user = userid
                         break
-
-            # TODO ajouter les CC en copie dans la tâche
 
             # original_mail_date (sent date of relevant email)
             if metadata.get('Original mail date'):
