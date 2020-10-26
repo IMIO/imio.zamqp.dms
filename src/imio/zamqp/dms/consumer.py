@@ -330,8 +330,11 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             metadata['internal_reference_no'] = internalReferenceIncomingMailDefaultValue(self.context)
         if 'reception_date' not in metadata:
             metadata['reception_date'] = receptionDateDefaultValue(self.context)
+        mail_types = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.mail_types')
+        email_type = u'email' in [dic['mt_value'] for dic in mail_types if dic['mt_active']]
+        if email_type:
+            metadata['mail_type'] = u'email'
 
-        # TODO ajouter le type de courrier entrant email
         intids = getUtility(IIntIds)
         # TODO vérifier intérêt owner
         owner = api.user.get_current().id
