@@ -5,7 +5,6 @@ from collective.contact.plonegroup.utils import organizations_with_suffixes
 from collective.dms.batchimport.utils import createDocument
 from collective.dms.batchimport.utils import log
 from collective.dms.mailcontent.dmsmail import internalReferenceIncomingMailDefaultValue
-from collective.dms.mailcontent.dmsmail import receptionDateDefaultValue
 from collective.zamqp.consumer import Consumer
 from imio.dms.mail import IM_EDITOR_SERVICE_FUNCTIONS
 from imio.helpers.content import transitions
@@ -318,21 +317,30 @@ class IncomingEmail(DMSMainFile, CommonMethods):
 
     def create_or_update(self):
         pdf, metadata, attachments = self.extract_tar(self.file_content)
-        # metadata = {u'Origin': u'Agent forward',
+        # metadata = {
+        # u'Origin': u'Agent forward',
         # u'From': [[u'Fr\xe9d\xe9ric Rasic', u'frasic@imio.be']],
         # u'Cc': [],
         # u'Agent': [[u'St\xe9phan Geulette', u'stephan.geulette@imio.be']],
         # u'To': [[u'tous@imio.be', u'tous@imio.be']],
         # u'Subject': u'[Tous] Diffusion \xe9lectronique des documents de paie'}
+
+        # self.metadata = {
+        # 'file_title': u'01Z999900000001.tar', 'mail_type': None, 'id': u'01Z999900000001'}
+        # self.scan_fields = {
+        # 'scan_id': u'01Z999900000001', 'scanner': u'pc-scan01', , 'scan_user': u'testuser'
+        # 'scan_date': datetime.datetime(2020, 10, 20, 16, 53, 23), 'version': 1, 'pages_number': None}
+
+        for key in ('scanner', 'scan_user', 'pages_number'):
+            del self.scan_fields[key]
+
         metadata['title'] = metadata['Subject']
-        file_title = 'Incoming email'
         if 'internal_reference_no' not in metadata:
             metadata['internal_reference_no'] = internalReferenceIncomingMailDefaultValue(self.context)
-        if 'reception_date' not in metadata:
-            metadata['reception_date'] = receptionDateDefaultValue(self.context)
+        if self.scan_fields['scan_date']:
+            metadata['reception_date'] = self.scan_fields['scan_date']
         mail_types = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.mail_types')
-        email_type = u'email' in [dic['mt_value'] for dic in mail_types if dic['mt_active']]
-        if email_type:
+        if u'email' in [dic['mt_value'] for dic in mail_types if dic['mt_active']]:
             metadata['mail_type'] = u'email'
 
         intids = getUtility(IIntIds)
@@ -389,22 +397,22 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             file_object = NamedBlobFile(
                 pdf,
                 filename=u'email.pdf')
-            version = createContentInContainer(
-                document,
-                'dmsmainfile',
-                title=file_title,
-                file=file_object)
-            # TODO ajouter externalid mais ne pas indexer la fiche
-            # self.set_scan_attr(version)
+            self.metadata['file_title'] = 'Incoming email'
+            main_file = self._upload_file(document, file_object)
+            log.info('file has been created (scan_id: {0})'.format(main_file.scan_id))
             document.reindexObject()
 
             for attachment in attachments:
                 file_object = NamedBlobFile(
                     attachment['content'],
                     filename=attachment['filename'])
-                version = createContentInContainer(
+                appendix = createContentInContainer(
                     document,
                     'dmsappendixfile',
                     title=attachment['filename'],
                     file=file_object)
-                log.info('file document has been created (id: %s)' % version.id)
+                log.info('appendix has been created (id: %s)' % appendix.id)
+
+    def _upload_file_extra_data(self):
+        """ """
+        return self.scan_fields
