@@ -85,7 +85,12 @@ class IncomingMail(DMSMainFile, CommonMethods):
             owner=self.obj.creator,
             metadata=self.metadata)
         self.set_scan_attr(main_file)
-        document.reindexObject(idxs=('SearchableText'))
+        main_file.reindexObject(idxs=('SearchableText', ))
+        document.reindexObject(idxs=('SearchableText', ))
+
+    def _upload_file_extra_data(self):
+        """ """
+        return self.scan_fields
 
     def update(self, the_file, obj_file):
         # update dmsfile when barcode is found in catalog
@@ -93,7 +98,7 @@ class IncomingMail(DMSMainFile, CommonMethods):
             log.info('file not updated due to an oldest version (scan_id: {0})'.format(the_file.scan_id))
             return
         document = the_file.aq_parent
-        #### TEST STATE
+        # TODO TEST document STATE ?
         api.content.delete(obj=the_file)
         # dont modify id !
         del self.metadata['id']
@@ -101,8 +106,7 @@ class IncomingMail(DMSMainFile, CommonMethods):
             if base_hasattr(document, key) and value:
                 setattr(document, key, value)
         new_file = self._upload_file(document, obj_file)
-        self.set_scan_attr(new_file)
-        document.reindexObject(idxs=('SearchableText'))
+        document.reindexObject(idxs=('SearchableText', ))
         log.info('file has been updated (scan_id: {0})'.format(new_file.scan_id))
 
 # OUTGOING MAILS #
@@ -128,6 +132,10 @@ class OutgoingMail(DMSMainFile, CommonMethods):
     def file_portal_types(self):
         return ['dmsommainfile']
 
+    def _upload_file_extra_data(self):
+        """ """
+        return self.scan_fields
+
     def create(self, obj_file):
         # create a new om when barcode isn't found in catalog
         if self.scan_fields['scan_date']:
@@ -145,7 +153,8 @@ class OutgoingMail(DMSMainFile, CommonMethods):
         # MANAGE signed: to True ?
         self.scan_fields['signed'] = True
         self.set_scan_attr(main_file)
-        document.reindexObject(idxs=('SearchableText'))
+        main_file.reindexObject(idxs=('SearchableText', ))
+        document.reindexObject(idxs=('SearchableText', ))
         with api.env.adopt_user(username='scanner'):
             api.content.transition(obj=document, transition='set_scanned')
 
@@ -161,10 +170,9 @@ class OutgoingMail(DMSMainFile, CommonMethods):
         for key, value in self.metadata.items():
             if base_hasattr(document, key) and value:
                 setattr(document, key, value)
-        new_file = self._upload_file(document, obj_file)
         # MANAGE signed: to True ?
         self.scan_fields['signed'] = True
-        self.set_scan_attr(new_file)
+        new_file = self._upload_file(document, obj_file)
         document.reindexObject(idxs=('SearchableText'))
         log.info('file has been updated (scan_id: {0})'.format(new_file.scan_id))
 
@@ -260,13 +268,16 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                     state = api.content.get_state(self.document)
                     i += 1
 
+    def _upload_file_extra_data(self):
+        """ """
+        return self.scan_fields
+
     def create(self, obj_file):
         # create a new dmsfile
         document = self.document
-        main_file = self._upload_file(document, obj_file)
         self.scan_fields['signed'] = True
-        self.set_scan_attr(main_file)
-        document.reindexObject(idxs=('SearchableText'))
+        main_file = self._upload_file(document, obj_file)
+        document.reindexObject(idxs=('SearchableText', ))
         log.info('file has been created (scan_id: {0})'.format(main_file.scan_id))
 
     def update(self, the_file, obj_file):
@@ -276,10 +287,9 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
             return
         document = the_file.aq_parent
         api.content.delete(obj=the_file)
-        new_file = self._upload_file(document, obj_file)
         self.scan_fields['signed'] = True
-        self.set_scan_attr(new_file)
-        document.reindexObject(idxs=('SearchableText'))
+        new_file = self._upload_file(document, obj_file)
+        document.reindexObject(idxs=('SearchableText', ))
         log.info('file has been updated (scan_id: {0})'.format(new_file.scan_id))
 
 
