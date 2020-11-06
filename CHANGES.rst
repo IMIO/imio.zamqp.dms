@@ -5,8 +5,14 @@ Changelog
 0.9 (unreleased)
 ----------------
 
-- Nothing changed yet.
-
+- Changed new incoming email state following iemail_manual_forward_transitions option.
+  [sgeulette]
+- Changed the way an internal user is searched
+  [sgeulette]
+- Added default email mail_type
+  [sgeulette]
+- Defined _upload_file_extra_data to replace set_scan_attr when possible
+  [sgeulette]
 
 0.8 (2020-10-07)
 ----------------

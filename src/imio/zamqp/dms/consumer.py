@@ -7,6 +7,7 @@ from collective.dms.batchimport.utils import log
 from collective.dms.mailcontent.dmsmail import internalReferenceIncomingMailDefaultValue
 from collective.zamqp.consumer import Consumer
 from imio.dms.mail import IM_EDITOR_SERVICE_FUNCTIONS
+from imio.dms.mail.utils import get_dms_config
 from imio.helpers.content import transitions
 from imio.helpers.security import get_user_from_criteria
 from imio.zamqp.core import base
@@ -393,11 +394,36 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 )
                 document.original_mail_date = parsed_original_date
 
-            if document.treating_groups and document.assigned_user:
-                # TODO directly to agent ?
+            fw_tr = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.'
+                                                   'iemail_manual_forward_transition')
+            # u'created', title=_(u'A user forwarded email will stay at creation level')),
+            # u'manager', title=_(u'A user forwarded email will go to manager level')),
+            # u'n_plus_h', title=_(u'A user forwarded email will go to highest N+ level, u'otherwise to agent')),
+            # u'n_plus_l', title=_(u'A user forwarded email will go to lowest N+ level, u'otherwise to agent')),
+            # u'agent', title=_(u'A user forwarded email will go to agent level')),
+            if fw_tr != 'created':
+                to_state = 'created'
+                if fw_tr == 'manager':
+                    to_state = 'proposed_to_manager'
+                elif document.treating_groups:
+                    if fw_tr == 'agent' or '_n_plus_1' not in get_dms_config(['review_levels', 'dmsincomingmail']):
+                        to_state = 'proposed_to_agent'
+                    else:
+                        to_state = 'proposed_to_agent'
+                        tr_levels = get_dms_config(['transitions_levels', 'dmsincomingmail'])
+                        wf_from_to = get_dms_config(['wf_from_to', 'dmsincomingmail', 'n_plus', 'to'])
+                        st_from_tr = {tr: st for (st, tr) in wf_from_to}
+                        if tr_levels['created'].get(document.treating_groups):
+                            tr = tr_levels['created'][document.treating_groups][0]
+                            if fw_tr == 'n_plus_h':
+                                to_state = st_from_tr[tr]
+                            elif fw_tr == 'n_plus_l':
+                                while tr != 'propose_to_agent':
+                                    to_state = st_from_tr[tr]
+                                    tr = tr_levels[to_state][document.treating_groups][0]
                 i = 0
                 state = api.content.get_state(document)
-                while state != 'proposed_to_agent' and i < 10:
+                while state != to_state and i < 10:
                     transitions(document, ['propose_to_agent', 'propose_to_n_plus_1', 'propose_to_n_plus_2',
                                            'propose_to_n_plus_3', 'propose_to_n_plus_4', 'propose_to_n_plus_5',
                                            'propose_to_manager', 'propose_to_pre_manager'])
