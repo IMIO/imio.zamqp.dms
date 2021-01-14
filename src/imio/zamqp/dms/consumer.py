@@ -351,7 +351,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
         if self.scan_fields['scan_date']:
             metadata['reception_date'] = self.scan_fields['scan_date']
         mail_types = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.mail_types')
-        if u'email' in [dic['mt_value'] for dic in mail_types if dic['mt_active']]:
+        if u'email' in [dic['value'] for dic in mail_types if dic['active']]:
             metadata['mail_type'] = u'email'
 
         intids = getUtility(IIntIds)
