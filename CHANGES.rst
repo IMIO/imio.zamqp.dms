@@ -13,6 +13,8 @@ Changelog
   [sgeulette]
 - Defined _upload_file_extra_data to replace set_scan_attr when possible
   [sgeulette]
+- Removed Subject value from email metadata
+  [sgeulette]
 
 0.8 (2020-10-07)
 ----------------

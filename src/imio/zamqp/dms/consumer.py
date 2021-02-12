@@ -345,7 +345,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
         for key in ('scanner', 'scan_user', 'pages_number'):
             del self.scan_fields[key]
 
-        metadata['title'] = metadata['Subject']
+        metadata['title'] = metadata.pop('Subject')  # we remove Subject because its fills a catalog metadata
         if 'internal_reference_no' not in metadata:
             metadata['internal_reference_no'] = internalReferenceIncomingMailDefaultValue(self.context)
         if self.scan_fields['scan_date']:
