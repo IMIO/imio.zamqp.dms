@@ -52,7 +52,7 @@ class CommonMethods(object):
 
     def creating_group_split(self):
         # we manage optional fields (1.3 schema)
-        file_metadata = self.obj.context.file_metadata
+        file_metadata = self.obj.context.file_metadata  # noqa
         for metadata, attr, voc in (('creating_group', 'creating_group',
                                      u'imio.dms.mail.ActiveCreatingGroupVocabulary'),
                                     ('treating_group', 'treating_groups',
@@ -61,11 +61,11 @@ class CommonMethods(object):
                 continue
             parts = file_metadata[metadata].split(cg_separator)
             if len(parts) > 1:
-                self.metadata[attr] = parts[1].strip()
+                self.metadata[attr] = parts[1].strip()  # noqa
             factory = getUtility(IVocabularyFactory, voc)
-            voc_i = factory(self.folder)
-            if self.metadata[attr] not in [term.value for term in voc_i._terms]:
-                del self.metadata[attr]
+            voc_i = factory(self.folder)  # noqa
+            if self.metadata[attr] not in [term.value for term in voc_i._terms]:  # noqa
+                del self.metadata[attr]  # noqa
 
 
 class IncomingMail(DMSMainFile, CommonMethods):
@@ -174,7 +174,7 @@ class OutgoingMail(DMSMainFile, CommonMethods):
         # MANAGE signed: to True ?
         self.scan_fields['signed'] = True
         new_file = self._upload_file(document, obj_file)
-        document.reindexObject(idxs=('SearchableText'))
+        document.reindexObject(idxs=('SearchableText', ))
         log.info('file has been updated (scan_id: {0})'.format(new_file.scan_id))
 
 # OUTGOING GENERATED MAILS #
@@ -225,7 +225,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 for param in the_file.scan_user.split('|'):
                     params[param] = True
             # the_file.scan_user = None  # Don't remove for next generation
-            self.document = the_file.aq_parent
+            self.document = the_file.aq_parent  # noqa
             # search for signed file
             result = self.site.portal_catalog(
                 portal_type='dmsommainfile',
@@ -254,7 +254,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
             if not params['PD']:
                 self.document.outgoing_date = (self.scan_fields['scan_date'] and self.scan_fields['scan_date'] or
                                                datetime.datetime.now())
-                self.document.reindexObject(idxs=('in_out_date'))
+                self.document.reindexObject(idxs=('in_out_date', ))
             if not params['PC']:
                 # close
                 trans = {
@@ -319,12 +319,15 @@ class IncomingEmail(DMSMainFile, CommonMethods):
         pdf = tar.extractfile('email.pdf').read()
         metadata = json.loads(tar.extractfile('metadata.json').read())
         attachments = [
-            {'filename': member.path.decode('utf8').split('/')[-1],
+            {'filename': member.path.decode('utf8').split('/')[-1],  # noqa
              'content': tar.extractfile(member).read()}
             for member in tar.getmembers()
-            if member.path.startswith("/attachments/")
+            if member.path.startswith("/attachments/")  # noqa
         ]
         return pdf, metadata, attachments
+
+    def create(self, obj_file):
+        pass
 
     def create_or_update(self):
         pdf, metadata, attachments = self.extract_tar(self.file_content)
