@@ -15,6 +15,8 @@ Changelog
   [sgeulette]
 - Removed Subject value from email metadata
   [sgeulette]
+- Set `_iem_agent` attribute when agent forwarded email and document transitioned
+  [sgeulette]
 
 0.8 (2020-10-07)
 ----------------

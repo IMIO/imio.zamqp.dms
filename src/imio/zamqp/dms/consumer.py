@@ -424,6 +424,9 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                                 while tr != 'propose_to_agent':
                                     to_state = st_from_tr[tr]
                                     tr = tr_levels[to_state][document.treating_groups][0]
+                # we store a flag to indicate that this content is agent forwarded and has been transitioned to
+                if to_state != 'created':
+                    setattr(document, '_iem_agent', to_state)
                 i = 0
                 state = api.content.get_state(document)
                 while state != to_state and i < 10:
