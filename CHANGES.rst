@@ -17,6 +17,8 @@ Changelog
   [sgeulette]
 - Set `_iem_agent` attribute when agent forwarded email and document transitioned
   [sgeulette]
+- Closed a generated document only if not an email or email has been sent
+  [sgeulette]
 
 0.8 (2020-10-07)
 ----------------
