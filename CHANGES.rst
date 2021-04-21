@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.9 (unreleased)
+0.9 (2021-04-21)
 ----------------
 
 - Changed new incoming email state following iemail_manual_forward_transitions option.
