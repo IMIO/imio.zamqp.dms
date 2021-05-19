@@ -362,8 +362,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
 
         intids = getUtility(IIntIds)
         # TODO vérifier intérêt owner
-        owner = api.user.get_current().id
-        with api.env.adopt_user(username=owner):
+        with api.env.adopt_user(user=api.user.get_current()):
             document = createContentInContainer(self.folder, 'dmsincoming_email', **metadata)
             log.info('document has been created (id: %s)' % document.id)
             catalog = api.portal.get_tool('portal_catalog')
