@@ -369,6 +369,11 @@ class IncomingEmail(DMSMainFile, CommonMethods):
 
             # sender (all contacts with the "From" email)
             if metadata.get('From'):
+                if metadata['From'][0][0]:
+                    oes = u'"{0}" <{1}>'.format(*metadata['From'][0])
+                else:
+                    oes = metadata['From'][0][1]
+                document.original_email_sender = oes
                 results = catalog.unrestrictedSearchResults(email=metadata['From'][0][1])
                 if results:
                     document.sender = [RelationValue(intids.getId(brain.getObject())) for brain in results]
