@@ -333,8 +333,8 @@ class IncomingEmail(DMSMainFile, CommonMethods):
         pass
 
     def create_or_update(self):
-        pdf, metadata, attachments = self.extract_tar(self.file_content)
-        # metadata = {
+        pdf, maildata, attachments = self.extract_tar(self.file_content)
+        # maildata = {
         # u'Origin': u'Agent forward',
         # u'From': [[u'Fr\xe9d\xe9ric Rasic', u'frasic@imio.be']],
         # u'Cc': [],
@@ -351,37 +351,36 @@ class IncomingEmail(DMSMainFile, CommonMethods):
         for key in ('scanner', 'scan_user', 'pages_number'):
             del self.scan_fields[key]
 
-        metadata['title'] = metadata.pop('Subject')  # we remove Subject because its fills a catalog metadata
-        if 'internal_reference_no' not in metadata:
-            metadata['internal_reference_no'] = internalReferenceIncomingMailDefaultValue(self.context)
+        self.metadata['title'] = maildata['Subject']
+        if 'internal_reference_no' not in self.metadata:
+            self.metadata['internal_reference_no'] = internalReferenceIncomingMailDefaultValue(self.context)
         if self.scan_fields['scan_date']:
-            metadata['reception_date'] = self.scan_fields['scan_date']
+            self.metadata['reception_date'] = self.scan_fields['scan_date']
         mail_types = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.mail_types')
         if u'email' in [dic['value'] for dic in mail_types if dic['active']]:
-            metadata['mail_type'] = u'email'
+            self.metadata['mail_type'] = u'email'
 
         intids = getUtility(IIntIds)
-        # TODO vérifier intérêt owner
         with api.env.adopt_user(user=api.user.get_current()):
-            document = createContentInContainer(self.folder, 'dmsincoming_email', **metadata)
+            document = createContentInContainer(self.folder, 'dmsincoming_email', **self.metadata)
             log.info('document has been created (id: %s)' % document.id)
             catalog = api.portal.get_tool('portal_catalog')
 
             # sender (all contacts with the "From" email)
-            if metadata.get('From'):
-                if metadata['From'][0][0]:
-                    oes = u'"{0}" <{1}>'.format(*metadata['From'][0])
+            if maildata.get('From'):
+                if maildata['From'][0][0]:
+                    oes = u'"{0}" <{1}>'.format(*maildata['From'][0])
                 else:
-                    oes = metadata['From'][0][1]
+                    oes = maildata['From'][0][1]
                 document.original_email_sender = oes
-                results = catalog.unrestrictedSearchResults(email=metadata['From'][0][1])
+                results = catalog.unrestrictedSearchResults(email=maildata['From'][0][1])
                 if results:
                     document.sender = [RelationValue(intids.getId(brain.getObject())) for brain in results]
 
             # treating_groups (agent internal service, if there is one)
             # assigned_user (agent user; only if treating_groups assigned)
-            if metadata.get('Agent'):  # an agent has forwarded the email
-                agent_email = metadata['Agent'][0][1]
+            if maildata.get('Agent'):  # an agent has forwarded the email
+                agent_email = maildata['Agent'][0][1]
                 users = get_user_from_criteria(self.site, email=agent_email)
                 active_orgs = get_registry_organizations()
                 for dic in users:
@@ -397,9 +396,9 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                         break
 
             # original_mail_date (sent date of relevant email)
-            if metadata.get('Original mail date'):
+            if maildata.get('Original mail date'):
                 parsed_original_date = datetime.datetime.strptime(
-                    metadata.get('Original mail date'),
+                    maildata.get('Original mail date'),
                     '%Y-%m-%d',
                 )
                 document.original_mail_date = parsed_original_date
