@@ -33,7 +33,7 @@ def create_tarfile(name, content):
 
 
 def store_fake_content(klass, params, metadata):
-    """"""
+    """Patch file_content value."""
     fh = create_tarfile(params['file_metadata']['filename'], json.dumps(metadata))
     setattr(klass, 'file_content', fh.read())
     fh.close()

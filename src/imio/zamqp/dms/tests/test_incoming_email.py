@@ -37,14 +37,25 @@ class TestDmsfile(unittest.TestCase):
             'Subject': 'Bloodstain pattern analysis', 'Origin': 'Agent forward',
             'Agent': [['Vince Masuka', 'vince.masuka@mpd.am']]
         }
-        store_fake_content(IncomingEmail, params, metadata)
         msg = create_fake_message(CoreIncomingEmail, params)
+        # unknown agent has forwarded
         ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
+        store_fake_content(IncomingEmail, params, metadata)
         ie.create_or_update()
-        obj = self.pc(portal_type='dmsincoming_email')[0].getObject()
+        obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
         self.assertEqual(obj.mail_type, u'email')
         self.assertEqual(obj.original_email_sender, u'"Dexter Morgan" <dexter.morgan@mpd.am>')
         self.assertIsNone(obj.sender)
         self.assertIsNone(obj.treating_groups)
         self.assertIsNone(obj.assigned_user)
         self.assertEqual(api.content.get_state(obj), 'created')
+        # known agent has forwarded
+        ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
+        metadata['Agent'] = [['', 'agent@macommune.be']]
+        store_fake_content(IncomingEmail, params, metadata)
+        ie.create_or_update()
+        obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
+        self.assertIsNone(obj.sender)
+        self.assertIsNotNone(obj.treating_groups)
+        self.assertEqual(obj.assigned_user, u'agent')
+        self.assertEqual(api.content.get_state(obj), 'proposed_to_agent')
