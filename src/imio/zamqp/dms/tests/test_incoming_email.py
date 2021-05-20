@@ -47,7 +47,7 @@ class TestDmsfile(unittest.TestCase):
         ie.create_or_update()
         obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
         self.assertEqual(obj.mail_type, u'email')
-        self.assertEqual(obj.original_sender_email, u'"Dexter Morgan" <dexter.morgan@mpd.am>')
+        self.assertEqual(obj.orig_sender_email, u'"Dexter Morgan" <dexter.morgan@mpd.am>')
         self.assertIsNone(obj.sender)
         self.assertIsNone(obj.treating_groups)
         self.assertIsNone(obj.assigned_user)
