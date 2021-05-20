@@ -7,7 +7,6 @@ import cPickle
 import json
 import os
 import tarfile
-import tempfile
 
 
 def create_fake_message(klass, dic):
@@ -17,9 +16,8 @@ def create_fake_message(klass, dic):
     return Dummy(body=cPickle.dumps(inst))
 
 
-def create_tarfile(name, content):
+def create_tarfile(tdir, name, content):
     """Create a tar file with an empty pdf file and the content."""
-    tdir = tempfile.mkdtemp()
     f = open(os.path.join(tdir, 'email.pdf'), 'w')
     f.close()
     f = open(os.path.join(tdir, 'metadata.json'), 'w')
@@ -32,8 +30,8 @@ def create_tarfile(name, content):
     return open(os.path.join(tdir, name), 'rb')
 
 
-def store_fake_content(klass, params, metadata):
+def store_fake_content(tdir, klass, params, metadata):
     """Patch file_content value."""
-    fh = create_tarfile(params['file_metadata']['filename'], json.dumps(metadata))
+    fh = create_tarfile(tdir, params['file_metadata']['filename'], json.dumps(metadata))
     setattr(klass, 'file_content', fh.read())
     fh.close()
