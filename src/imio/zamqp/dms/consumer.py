@@ -372,7 +372,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     oes = u'"{0}" <{1}>'.format(*maildata['From'][0])
                 else:
                     oes = maildata['From'][0][1]
-                document.original_email_sender = oes
+                document.original_sender_email = oes
                 results = catalog.unrestrictedSearchResults(email=maildata['From'][0][1])
                 if results:
                     document.sender = [RelationValue(intids.getId(brain.getObject())) for brain in results]
