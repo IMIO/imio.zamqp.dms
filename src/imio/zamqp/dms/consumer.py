@@ -445,7 +445,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             file_object = NamedBlobFile(
                 pdf,
                 filename=u'email.pdf')
-            self.metadata['file_title'] = 'Incoming email'
+            self.metadata['file_title'] = u'email.pdf'
             main_file = self._upload_file(document, file_object)
             log.info('file has been created (scan_id: {0})'.format(main_file.scan_id))
             document.reindexObject()

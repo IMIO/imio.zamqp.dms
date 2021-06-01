@@ -5,8 +5,8 @@ Changelog
 0.10 (unreleased)
 -----------------
 
-- Nothing changed yet.
-
+- Changed email dmsfile title (and id)
+  [sgeulette]
 
 0.9 (2021-04-21)
 ----------------
