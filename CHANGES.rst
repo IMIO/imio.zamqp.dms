@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.10 (unreleased)
+0.10 (2021-06-04)
 -----------------
 
 - Changed email dmsfile title (and id)
