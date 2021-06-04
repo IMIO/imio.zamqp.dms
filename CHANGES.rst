@@ -7,6 +7,14 @@ Changelog
 
 - Changed email dmsfile title (and id)
   [sgeulette]
+- Store original_sender_email on dmsincoming_email
+  [sgeulette]
+- Use right metadata set to create dmsincoming_email
+  [sgeulette]
+- Use current_user obj directly to avoid error when username is different from userid
+  [sgeulette]
+- Added tests
+  [sgeulette]
 
 0.9 (2021-04-21)
 ----------------
