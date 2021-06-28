@@ -380,11 +380,11 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             # treating_groups (agent internal service, if there is one)
             # assigned_user (agent user; only if treating_groups assigned)
             if maildata.get('Agent'):  # an agent has forwarded the email
-                agent_email = maildata['Agent'][0][1]
+                agent_email = maildata['Agent'][0][1].lower()
                 users = get_user_from_criteria(self.site, email=agent_email)
                 active_orgs = get_registry_organizations()
                 for dic in users:
-                    if dic['email'] != agent_email:  # to be sure email is not a part of longer email
+                    if dic['email'].lower() != agent_email:  # to be sure email is not a part of longer email
                         continue
                     userid = dic['userid']
                     groups = api.group.get_groups(username=userid)

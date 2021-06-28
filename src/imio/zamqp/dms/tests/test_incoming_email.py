@@ -54,7 +54,7 @@ class TestDmsfile(unittest.TestCase):
         self.assertEqual(api.content.get_state(obj), 'created')
         # known agent has forwarded
         ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-        metadata['Agent'] = [['', 'agent@macommune.be']]
+        metadata['Agent'] = [['', 'agent@MACOMMUNE.be']]
         store_fake_content(self.tdir, IncomingEmail, params, metadata)
         ie.create_or_update()
         obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()

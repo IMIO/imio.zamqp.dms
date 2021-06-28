@@ -5,8 +5,8 @@ Changelog
 0.11 (unreleased)
 -----------------
 
-- Nothing changed yet.
-
+- Lowercased email to match correctly.
+  [sgeulette]
 
 0.10 (2021-06-04)
 -----------------
