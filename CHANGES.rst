@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.11 (unreleased)
+0.11 (2021-08-27)
 -----------------
 
 - Lowercased email to match correctly.
