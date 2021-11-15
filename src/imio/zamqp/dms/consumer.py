@@ -18,6 +18,7 @@ from plone import api
 from plone.dexterity.utils import createContentInContainer
 from plone.namedfile.file import NamedBlobFile
 from Products.CMFPlone.utils import base_hasattr
+from Products.CMFPlone.utils import safe_unicode
 from z3c.relationfield.relation import RelationValue
 from zope.component import getUtility
 from zope.intid.interfaces import IIntIds
@@ -319,7 +320,10 @@ class IncomingEmail(DMSMainFile, CommonMethods):
     def extract_tar(self, archive_content):
         archive_file = BytesIO(archive_content)
         tar = tarfile.open(fileobj=archive_file)
-        pdf = tar.extractfile('email.pdf').read()
+        files = tar.getnames()
+        filename = 'email.pdf'
+        if 'email.eml' in files:
+            filename = 'email.eml'
         metadata = json.loads(tar.extractfile('metadata.json').read())
         attachments = [
             {'filename': member.path.decode('utf8').split('/')[-1],  # noqa
@@ -327,13 +331,13 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             for member in tar.getmembers()
             if member.path.startswith("/attachments/")  # noqa
         ]
-        return pdf, metadata, attachments
+        return (safe_unicode(filename), tar.extractfile(filename).read()), metadata, attachments
 
     def create(self, obj_file):
         pass
 
     def create_or_update(self):
-        pdf, maildata, attachments = self.extract_tar(self.file_content)
+        mf_tup, maildata, attachments = self.extract_tar(self.file_content)
         # maildata = {
         # u'Origin': u'Agent forward',
         # u'From': [[u'Fr\xe9d\xe9ric Rasic', u'frasic@imio.be']],
@@ -442,10 +446,8 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     state = api.content.get_state(document)
                     i += 1
 
-            file_object = NamedBlobFile(
-                pdf,
-                filename=u'email.pdf')
-            self.metadata['file_title'] = u'email.pdf'
+            file_object = NamedBlobFile(mf_tup[1], filename=mf_tup[0])
+            self.metadata['file_title'] = mf_tup[0]
             main_file = self._upload_file(document, file_object)
             log.info('file has been created (scan_id: {0})'.format(main_file.scan_id))
             document.reindexObject()

@@ -5,8 +5,8 @@ Changelog
 0.12 (unreleased)
 -----------------
 
-- Nothing changed yet.
-
+- Handled tar containing eml file.
+  [sgeulette]
 
 0.11 (2021-08-27)
 -----------------
