@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.12 (unreleased)
+0.12 (2021-11-15)
 -----------------
 
 - Handled tar containing eml file.
