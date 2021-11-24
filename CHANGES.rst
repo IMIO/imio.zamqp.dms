@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.13 (unreleased)
+0.13 (2021-11-24)
 -----------------
 
 - Corrected sender selection.
