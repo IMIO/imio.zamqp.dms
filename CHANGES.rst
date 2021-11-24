@@ -5,8 +5,8 @@ Changelog
 0.13 (unreleased)
 -----------------
 
-- Nothing changed yet.
-
+- Corrected sender selection.
+  [sgeulette]
 
 0.12 (2021-11-15)
 -----------------
