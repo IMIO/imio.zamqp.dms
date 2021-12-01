@@ -380,7 +380,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 results = catalog.unrestrictedSearchResults(email=maildata['From'][0][1],
                                                             portal_type=['organization', 'person', 'held_position'])
                 if results:
-                    document.sender = [RelationValue(intids.getId(brain.getObject())) for brain in results]
+                    document.sender = [RelationValue(intids.getId(brain._unrestrictedGetObject())) for brain in results]
 
             # treating_groups (agent internal service, if there is one)
             # assigned_user (agent user; only if treating_groups assigned)

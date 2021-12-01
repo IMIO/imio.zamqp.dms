@@ -5,8 +5,8 @@ Changelog
 0.14 (unreleased)
 -----------------
 
-- Nothing changed yet.
-
+- Used _unrestrictedGetObject() after unrestricted search
+  [sgeulette]
 
 0.13 (2021-11-24)
 -----------------
