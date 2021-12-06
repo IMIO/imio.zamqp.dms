@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.14 (unreleased)
+0.14 (2021-12-06)
 -----------------
 
 - Used _unrestrictedGetObject() after unrestricted search
