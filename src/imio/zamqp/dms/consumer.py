@@ -21,6 +21,8 @@ from Products.CMFPlone.utils import base_hasattr
 from Products.CMFPlone.utils import safe_unicode
 from z3c.relationfield.relation import RelationValue
 from zope.component import getUtility
+from zope.globalrequest import getRequest
+from zope.i18n import translate
 from zope.intid.interfaces import IIntIds
 from zope.schema.interfaces import IVocabularyFactory
 
@@ -355,7 +357,8 @@ class IncomingEmail(DMSMainFile, CommonMethods):
         for key in ('scanner', 'scan_user', 'pages_number'):
             del self.scan_fields[key]
 
-        self.metadata['title'] = maildata['Subject']
+        self.metadata['title'] = maildata['Subject'] or u'(VIDE)'
+        # or translate(u'(EMPTY)', domain='imio.zamqp.dms', context=getRequest())
         if 'internal_reference_no' not in self.metadata:
             self.metadata['internal_reference_no'] = internalReferenceIncomingMailDefaultValue(self.context)
         if self.scan_fields['scan_date']:

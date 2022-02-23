@@ -5,8 +5,8 @@ Changelog
 0.15 (unreleased)
 -----------------
 
-- Nothing changed yet.
-
+- Set a non empty title when the email subject is empty.
+  [sgeulette]
 
 0.14 (2021-12-06)
 -----------------
