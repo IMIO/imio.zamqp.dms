@@ -7,7 +7,9 @@ from collective.dms.batchimport.utils import log
 from collective.dms.mailcontent.dmsmail import internalReferenceIncomingMailDefaultValue
 from collective.zamqp.consumer import Consumer
 from imio.dms.mail import IM_EDITOR_SERVICE_FUNCTIONS
+from imio.dms.mail.utils import create_period_folder
 from imio.dms.mail.utils import get_dms_config
+from imio.dms.mail.utils import sub_create
 from imio.helpers.content import transitions
 from imio.helpers.security import get_user_from_criteria
 from imio.zamqp.core import base
@@ -84,7 +86,7 @@ class IncomingMail(DMSMainFile, CommonMethods):
         self.creating_group_split()
         (document, main_file) = createDocument(
             self.context,
-            self.folder,
+            create_period_folder(self.folder, self.metadata.get('reception_date', datetime.datetime.now())),
             self.document_type,
             '',
             obj_file,
@@ -369,7 +371,10 @@ class IncomingEmail(DMSMainFile, CommonMethods):
 
         intids = getUtility(IIntIds)
         with api.env.adopt_user(user=api.user.get_current()):
-            document = createContentInContainer(self.folder, 'dmsincoming_email', **self.metadata)
+            document = sub_create(self.folder, 'dmsincoming_email',
+                                  self.metadata.get('reception_date', datetime.datetime.now()), 'week',
+                                  self.metadata.pop('id'),
+                                  **self.metadata)
             log.info('document has been created (id: %s)' % document.id)
             catalog = api.portal.get_tool('portal_catalog')
 
