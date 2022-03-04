@@ -86,7 +86,7 @@ class IncomingMail(DMSMainFile, CommonMethods):
         self.creating_group_split()
         (document, main_file) = createDocument(
             self.context,
-            create_period_folder(self.folder, self.metadata.get('reception_date', datetime.datetime.now())),
+            create_period_folder(self.folder, datetime.datetime.now()),
             self.document_type,
             '',
             obj_file,
@@ -371,9 +371,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
 
         intids = getUtility(IIntIds)
         with api.env.adopt_user(user=api.user.get_current()):
-            document = sub_create(self.folder, 'dmsincoming_email',
-                                  self.metadata.get('reception_date', datetime.datetime.now()), 'week',
-                                  self.metadata.pop('id'),
+            document = sub_create(self.folder, 'dmsincoming_email', datetime.datetime.now(), self.metadata.pop('id'),
                                   **self.metadata)
             log.info('document has been created (id: %s)' % document.id)
             catalog = api.portal.get_tool('portal_catalog')
