@@ -365,9 +365,12 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             self.metadata['internal_reference_no'] = internalReferenceIncomingMailDefaultValue(self.context)
         if self.scan_fields['scan_date']:
             self.metadata['reception_date'] = self.scan_fields['scan_date']
-        mail_types = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.mail_types')
-        if u'email' in [dic['value'] for dic in mail_types if dic['active']]:
+        mail_types_rec = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.mail_types')
+        mail_types = [dic['value'] for dic in mail_types_rec if dic['active']]
+        if u'email' in mail_types:
             self.metadata['mail_type'] = u'email'
+        elif u'courrier' in mail_types:
+            self.metadata['mail_type'] = u'courrier'
 
         intids = getUtility(IIntIds)
         with api.env.adopt_user(user=api.user.get_current()):

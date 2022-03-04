@@ -9,6 +9,8 @@ Changelog
   [sgeulette]
 - Created incoming mails in subfolder
   [sgeulette]
+- Proposed email type alternative
+  [sgeulette]
 
 0.14 (2021-12-06)
 -----------------
