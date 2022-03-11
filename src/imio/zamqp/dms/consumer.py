@@ -151,7 +151,7 @@ class OutgoingMail(DMSMainFile, CommonMethods):
         self.creating_group_split()
         (document, main_file) = createDocument(
             self.context,
-            self.folder,
+            create_period_folder(self.folder, datetime.datetime.now()),
             self.document_type,
             '',
             obj_file,

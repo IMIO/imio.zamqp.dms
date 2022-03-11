@@ -7,7 +7,7 @@ Changelog
 
 - Set a non empty title when the email subject is empty.
   [sgeulette]
-- Created incoming mails in subfolder
+- Created incoming and outgoing mails in subfolder
   [sgeulette]
 - Proposed email type alternative
   [sgeulette]
