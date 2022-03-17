@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.15 (unreleased)
+0.15 (2022-03-17)
 -----------------
 
 - Set a non empty title when the email subject is empty.
