@@ -19,6 +19,7 @@ from io import BytesIO
 from plone import api
 from plone.dexterity.utils import createContentInContainer
 from plone.namedfile.file import NamedBlobFile
+from Products.CMFCore.WorkflowCore import WorkflowException
 from Products.CMFPlone.utils import base_hasattr
 from Products.CMFPlone.utils import safe_unicode
 from z3c.relationfield.relation import RelationValue
@@ -426,10 +427,13 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             # u'agent', title=_(u'A user forwarded email will go to agent level')),
             if fw_tr != 'created':
                 to_state = 'created'
-                if fw_tr == 'manager':
-                    to_state = 'proposed_to_manager'
-                elif document.treating_groups:
-                    if fw_tr == 'agent' or '_n_plus_1' not in get_dms_config(['review_levels', 'dmsincomingmail']):
+                if document.treating_groups:
+                    trs = ['propose_to_n_plus_1', 'propose_to_n_plus_2', 'propose_to_n_plus_3', 'propose_to_n_plus_4',
+                           'propose_to_n_plus_5', 'propose_to_manager', 'propose_to_pre_manager']
+                    if fw_tr == 'manager':
+                        to_state = 'proposed_to_manager'
+                        trs = ['propose_to_manager', 'propose_to_pre_manager']
+                    elif fw_tr == 'agent' or '_n_plus_1' not in get_dms_config(['review_levels', 'dmsincomingmail']):
                         to_state = 'proposed_to_agent'
                     else:
                         to_state = 'proposed_to_agent'
@@ -444,16 +448,23 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                                 while tr != 'propose_to_agent':
                                     to_state = st_from_tr[tr]
                                     tr = tr_levels[to_state][document.treating_groups][0]
+                    if to_state == 'proposed_to_agent':
+                        trs.insert(0, 'propose_to_agent')
                 # we store a flag to indicate that this content is agent forwarded and has been transitioned to
                 if to_state != 'created':
                     setattr(document, '_iem_agent', to_state)
                 i = 0
                 state = api.content.get_state(document)
+                pw = api.portal.get_tool("portal_workflow")
                 while state != to_state and i < 10:
-                    transitions(document, ['propose_to_agent', 'propose_to_n_plus_1', 'propose_to_n_plus_2',
-                                           'propose_to_n_plus_3', 'propose_to_n_plus_4', 'propose_to_n_plus_5',
-                                           'propose_to_manager', 'propose_to_pre_manager'])
-                    state = api.content.get_state(document)
+                    for tr in trs:
+                        try:
+                            pw.doActionFor(document, tr)
+                        except WorkflowException:
+                            continue
+                        state = api.content.get_state(document)
+                        if state == to_state:
+                            break
                     i += 1
 
             file_object = NamedBlobFile(mf_tup[1], filename=mf_tup[0])

@@ -5,8 +5,8 @@ Changelog
 0.16 (unreleased)
 -----------------
 
-- Nothing changed yet.
-
+- Handled correctly transitions to be done on IncomingEmail.
+  [sgeulette]
 
 0.15 (2022-03-17)
 -----------------
