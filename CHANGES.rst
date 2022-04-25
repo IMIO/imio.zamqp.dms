@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.16 (unreleased)
+0.16 (2022-04-25)
 -----------------
 
 - Handled correctly transitions to be done on IncomingEmail.
