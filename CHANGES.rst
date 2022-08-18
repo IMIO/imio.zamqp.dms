@@ -5,8 +5,8 @@ Changelog
 0.17 (unreleased)
 -----------------
 
-- Nothing changed yet.
-
+- Set differently mail_type: on im, set at first voc value, on iem set at 'email' or first voc value.
+  [sgeulette]
 
 0.16 (2022-04-25)
 -----------------

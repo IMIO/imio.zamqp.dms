@@ -85,6 +85,9 @@ class IncomingMail(DMSMainFile, CommonMethods):
         if 'recipient_groups' not in self.metadata:
             self.metadata['recipient_groups'] = []
         self.creating_group_split()
+        mail_types_rec = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.mail_types')
+        mail_types = [dic['value'] for dic in mail_types_rec if dic['active']]
+        self.metadata['mail_type'] = mail_types[0]
         (document, main_file) = createDocument(
             self.context,
             create_period_folder(self.folder, datetime.datetime.now()),
@@ -111,6 +114,7 @@ class IncomingMail(DMSMainFile, CommonMethods):
         api.content.delete(obj=the_file)
         # dont modify id !
         del self.metadata['id']
+        del self.metadata['mail_type']
         for key, value in self.metadata.items():
             if base_hasattr(document, key) and value:
                 setattr(document, key, value)
@@ -370,8 +374,8 @@ class IncomingEmail(DMSMainFile, CommonMethods):
         mail_types = [dic['value'] for dic in mail_types_rec if dic['active']]
         if u'email' in mail_types:
             self.metadata['mail_type'] = u'email'
-        elif u'courrier' in mail_types:
-            self.metadata['mail_type'] = u'courrier'
+        else:
+            self.metadata['mail_type'] = mail_types[0]
 
         intids = getUtility(IIntIds)
         with api.env.adopt_user(user=api.user.get_current()):
