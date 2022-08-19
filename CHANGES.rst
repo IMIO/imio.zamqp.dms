@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.17 (unreleased)
+0.17 (2022-08-19)
 -----------------
 
 - Set differently mail_type: on im, set at first voc value, on iem set at 'email' or first voc value.
