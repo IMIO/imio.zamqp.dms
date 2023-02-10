@@ -22,6 +22,7 @@ from plone.namedfile.file import NamedBlobFile
 from Products.CMFCore.WorkflowCore import WorkflowException
 from Products.CMFPlone.utils import base_hasattr
 from Products.CMFPlone.utils import safe_unicode
+from unidecode import unidecode
 from z3c.relationfield.relation import RelationValue
 from zope.component import getUtility
 from zope.globalrequest import getRequest
@@ -387,7 +388,8 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             # sender (all contacts with the "From" email)
             if maildata.get('From'):
                 if maildata['From'][0][0]:
-                    oes = u'"{0}" <{1}>'.format(*maildata['From'][0])
+                    realname, eml = maildata['From'][0]
+                    oes = u'"{0}" <{1}>'.format(unidecode(realname), eml)
                 else:
                     oes = maildata['From'][0][1]
                 document.orig_sender_email = oes

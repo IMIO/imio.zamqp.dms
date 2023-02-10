@@ -5,8 +5,8 @@ Changelog
 0.18 (unreleased)
 -----------------
 
-- Nothing changed yet.
-
+- Removed accented characters from orig_sender_email.
+  [sgeulette]
 
 0.17 (2022-08-19)
 -----------------
