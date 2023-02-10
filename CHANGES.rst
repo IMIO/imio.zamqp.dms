@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.18 (unreleased)
+0.18 (2023-02-10)
 -----------------
 
 - Removed accented characters from orig_sender_email.
