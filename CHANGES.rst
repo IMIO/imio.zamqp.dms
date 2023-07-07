@@ -5,8 +5,8 @@ Changelog
 0.19 (unreleased)
 -----------------
 
-- Nothing changed yet.
-
+- Replaced imio.helpers transitions import.
+  [sgeulette]
 
 0.18 (2023-02-10)
 -----------------

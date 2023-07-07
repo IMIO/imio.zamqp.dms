@@ -10,8 +10,8 @@ from imio.dms.mail import IM_EDITOR_SERVICE_FUNCTIONS
 from imio.dms.mail.utils import create_period_folder
 from imio.dms.mail.utils import get_dms_config
 from imio.dms.mail.utils import sub_create
-from imio.helpers.content import transitions
 from imio.helpers.security import get_user_from_criteria
+from imio.helpers.workflow import do_transitions
 from imio.zamqp.core import base
 from imio.zamqp.core.consumer import consume
 from imio.zamqp.core.consumer import DMSMainFile
@@ -279,7 +279,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 state = api.content.get_state(self.document)
                 i = 0
                 while state != 'sent' and i < 10:
-                    transitions(self.document, trans.get(state, []))
+                    do_transitions(self.document, trans.get(state, []))
                     state = api.content.get_state(self.document)
                     i += 1
 
