@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.19 (unreleased)
+0.19 (2023-07-07)
 -----------------
 
 - Replaced imio.helpers transitions import.
