@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
-from copy import deepcopy
-
 from collective.wfadaptations.api import add_applied_adaptation
+from copy import deepcopy
 from imio.dataexchange.core.dms import IncomingEmail as CoreIncomingEmail
 from imio.dms.mail.testing import DMSMAIL_INTEGRATION_TESTING
 from imio.dms.mail.utils import group_has_user
 from imio.dms.mail.wfadaptations import IMServiceValidation
 from imio.zamqp.dms.testing import create_fake_message
 from imio.zamqp.dms.testing import store_fake_content
+from plone import api
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
-from plone import api
 
 import datetime
 import shutil
@@ -29,9 +28,9 @@ class TestDmsfile(unittest.TestCase):
         self.imf = self.portal['incoming-mail']
         self.omf = self.portal['outgoing-mail']
         self.tdir = tempfile.mkdtemp()
-        print self.tdir
+        print(self.tdir)
 
-    def test_IncomingEmail_base(self):
+    def test_IncomingEmail_flow(self):
         from imio.zamqp.dms.consumer import IncomingEmail  # import later to avoid core config error
         params = {
             'external_id': u'01Z9999000000', 'client_id': u'019999', 'type': u'EMAIL_E', 'version': 1,
@@ -47,14 +46,12 @@ class TestDmsfile(unittest.TestCase):
         }
         fw_tr_reg = 'imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_manual_forward_transition'
         # expected states following the registry and the treating_group presence
-        c_states = (('created', 'created'), ('created', 'proposed_to_manager'),
-                    ('created', 'proposed_to_agent'), ('created', 'proposed_to_agent'),
-                    ('created', 'proposed_to_agent'))
+        c_states = ('created', 'proposed_to_manager', 'proposed_to_agent', 'proposed_to_agent', 'proposed_to_agent')
         tg = None
         for i, reg_val in enumerate((u'created', u'manager', u'n_plus_h', u'n_plus_l', u'agent')):
             api.portal.set_registry_record(fw_tr_reg, reg_val)
             # unknown agent has forwarded
-            params['external_id'] = u'01Z9999000000' + u'{:02d}'.format(i+1)
+            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 1)
             msg = create_fake_message(CoreIncomingEmail, params)
             ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
             store_fake_content(self.tdir, IncomingEmail, params, metadata)
@@ -65,9 +62,9 @@ class TestDmsfile(unittest.TestCase):
             self.assertIsNone(obj.sender)
             self.assertIsNone(obj.treating_groups)
             self.assertIsNone(obj.assigned_user)
-            self.assertEqual(api.content.get_state(obj), c_states[i][0], reg_val)
+            self.assertEqual(api.content.get_state(obj), 'created', reg_val)
             # known agent has forwarded
-            params['external_id'] = u'01Z9999000000' + u'{:02d}'.format(i+6)
+            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 6)
             msg = create_fake_message(CoreIncomingEmail, params)
             ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
             metadata2 = deepcopy(metadata)
@@ -81,7 +78,7 @@ class TestDmsfile(unittest.TestCase):
                 self.assertEqual(tg, obj.treating_groups, reg_val)
             tg = obj.treating_groups
             self.assertEqual(obj.assigned_user, u'agent')
-            self.assertEqual(api.content.get_state(obj), c_states[i][1], reg_val)
+            self.assertEqual(api.content.get_state(obj), c_states[i], reg_val)
 
         # with n_plus_1 level
         self.portal.portal_setup.runImportStepFromProfile('profile-imio.dms.mail:singles',
@@ -89,13 +86,12 @@ class TestDmsfile(unittest.TestCase):
                                                           run_dependencies=False)
         groupname_1 = '{}_n_plus_1'.format(tg)
         self.assertTrue(group_has_user(groupname_1))
-        c_states = (('created', 'created'), ('created', 'proposed_to_manager'),
-                    ('created', 'proposed_to_n_plus_1'), ('created', 'proposed_to_n_plus_1'),
-                    ('created', 'proposed_to_agent'))
+        c_states = ('created', 'proposed_to_manager', 'proposed_to_n_plus_1', 'proposed_to_n_plus_1',
+                    'proposed_to_agent')
         for i, reg_val in enumerate((u'created', u'manager', u'n_plus_h', u'n_plus_l', u'agent')):
             api.portal.set_registry_record(fw_tr_reg, reg_val)
             # unknown agent has forwarded
-            params['external_id'] = u'01Z9999000000' + u'{:02d}'.format(i+11)
+            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 11)
             msg = create_fake_message(CoreIncomingEmail, params)
             ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
             store_fake_content(self.tdir, IncomingEmail, params, metadata)
@@ -103,9 +99,9 @@ class TestDmsfile(unittest.TestCase):
             obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
             self.assertIsNone(obj.treating_groups)
             self.assertIsNone(obj.assigned_user)
-            self.assertEqual(api.content.get_state(obj), c_states[i][0], reg_val)
+            self.assertEqual(api.content.get_state(obj), 'created', reg_val)
             # known agent has forwarded
-            params['external_id'] = u'01Z9999000000' + u'{:02d}'.format(i+16)
+            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 16)
             msg = create_fake_message(CoreIncomingEmail, params)
             ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
             metadata2 = deepcopy(metadata)
@@ -115,7 +111,7 @@ class TestDmsfile(unittest.TestCase):
             obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
             self.assertIsNotNone(obj.treating_groups)
             self.assertEqual(obj.assigned_user, u'agent')
-            self.assertEqual(api.content.get_state(obj), c_states[i][1], reg_val)
+            self.assertEqual(api.content.get_state(obj), c_states[i], reg_val)
 
         # with n_plus_2 level
         n_plus_2_params = {'validation_level': 2,
@@ -131,13 +127,12 @@ class TestDmsfile(unittest.TestCase):
         groupname_2 = '{}_n_plus_2'.format(tg)
         self.assertFalse(group_has_user(groupname_2))
         api.group.add_user(groupname=groupname_2, username='chef')
-        c_states = (('created', 'created'), ('created', 'proposed_to_manager'),
-                    ('created', 'proposed_to_n_plus_2'), ('created', 'proposed_to_n_plus_1'),
-                    ('created', 'proposed_to_agent'))
+        c_states = ('created', 'proposed_to_manager', 'proposed_to_n_plus_2', 'proposed_to_n_plus_1',
+                    'proposed_to_agent')
         for i, reg_val in enumerate((u'created', u'manager', u'n_plus_h', u'n_plus_l', u'agent')):
             api.portal.set_registry_record(fw_tr_reg, reg_val)
             # unknown agent has forwarded
-            params['external_id'] = u'01Z9999000000' + u'{:02d}'.format(i+21)
+            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 21)
             msg = create_fake_message(CoreIncomingEmail, params)
             ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
             store_fake_content(self.tdir, IncomingEmail, params, metadata)
@@ -145,9 +140,9 @@ class TestDmsfile(unittest.TestCase):
             obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
             self.assertIsNone(obj.treating_groups)
             self.assertIsNone(obj.assigned_user)
-            self.assertEqual(api.content.get_state(obj), c_states[i][0], reg_val)
+            self.assertEqual(api.content.get_state(obj), 'created', reg_val)
             # known agent has forwarded
-            params['external_id'] = u'01Z9999000000' + u'{:02d}'.format(i+26)
+            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 26)
             msg = create_fake_message(CoreIncomingEmail, params)
             ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
             metadata2 = deepcopy(metadata)
@@ -157,8 +152,8 @@ class TestDmsfile(unittest.TestCase):
             obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
             self.assertIsNotNone(obj.treating_groups)
             self.assertEqual(obj.assigned_user, u'agent')
-            self.assertEqual(api.content.get_state(obj), c_states[i][1], reg_val)
+            self.assertEqual(api.content.get_state(obj), c_states[i], reg_val)
 
     def tearDown(self):
-        print "removing:"+self.tdir
+        print("removing:" + self.tdir)
         shutil.rmtree(self.tdir, ignore_errors=True)
