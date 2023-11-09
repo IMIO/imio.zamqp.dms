@@ -10,7 +10,6 @@
 # dirs
 bin/
 buildout-cache/
-checkversion*
 develop-eggs/
 eggs/
 htmlcov/
@@ -22,9 +21,11 @@ src/*
 test.plone_addon/
 var/
 # files
+checkversion*
 lib64
 log.html
 output.xml
+pipeline.cfg
 pip-selfcheck.json
 report.html
 # excludes
