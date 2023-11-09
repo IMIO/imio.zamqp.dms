@@ -5,8 +5,8 @@ Changelog
 0.20 (unreleased)
 -----------------
 
-- Nothing changed yet.
-
+- Set new setup
+  [sgeulette]
 
 0.19 (2023-07-07)
 -----------------
