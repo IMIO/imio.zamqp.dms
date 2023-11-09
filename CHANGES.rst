@@ -7,6 +7,9 @@ Changelog
 
 - Set new setup
   [sgeulette]
+- In IncomingEmail consumer, when the sender email is an internal held position, we select only one position:
+  the primary organization related one or the first one of the list but not all
+  [sgeulette]
 
 0.19 (2023-07-07)
 -----------------

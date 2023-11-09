@@ -7,6 +7,7 @@ from collective.dms.batchimport.utils import log
 from collective.dms.mailcontent.dmsmail import internalReferenceIncomingMailDefaultValue
 from collective.zamqp.consumer import Consumer
 from imio.dms.mail import IM_EDITOR_SERVICE_FUNCTIONS
+from imio.dms.mail.interfaces import IPersonnelContact
 from imio.dms.mail.utils import create_period_folder
 from imio.dms.mail.utils import get_dms_config
 from imio.dms.mail.utils import sub_create
@@ -25,8 +26,6 @@ from Products.CMFPlone.utils import safe_unicode
 from unidecode import unidecode
 from z3c.relationfield.relation import RelationValue
 from zope.component import getUtility
-from zope.globalrequest import getRequest
-from zope.i18n import translate
 from zope.intid.interfaces import IIntIds
 from zope.schema.interfaces import IVocabularyFactory
 
@@ -396,7 +395,22 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 results = catalog.unrestrictedSearchResults(email=maildata['From'][0][1],
                                                             portal_type=['organization', 'person', 'held_position'])
                 if results:
-                    document.sender = [RelationValue(intids.getId(brain._unrestrictedGetObject())) for brain in results]
+                    filtered = []
+                    internals = {}
+                    for brain in results:
+                        obj = brain._unrestrictedGetObject()
+                        if brain.portal_type != 'held_position' or not IPersonnelContact.providedBy(obj):
+                            filtered.append(obj)
+                            continue
+                        person = obj.get_person()
+                        internals.setdefault(person, []).append(obj)
+                    # for internal positions, we keep only the corresponding primary org position or only one
+                    for person in internals:
+                        hps = (person.primary_organization and [hp for hp in internals[person]
+                               if hp.get_organization().UID() == person.primary_organization]
+                               or internals[person])
+                        filtered.append(hps[0])
+                    document.sender = [RelationValue(intids.getId(ctc)) for ctc in filtered]
 
             # treating_groups (agent internal service, if there is one)
             # assigned_user (agent user; only if treating_groups assigned)
@@ -412,6 +426,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     agent_orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS)
                     agent_active_orgs = [org for org in agent_orgs if org in active_orgs]
                     if agent_active_orgs:
+                        # TODO MuST use primary group
                         document.treating_groups = agent_active_orgs[0]  # only take one
                         document.assigned_user = userid
                         break
