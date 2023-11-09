@@ -1,4 +1,7 @@
 .coverage
+.installed.cfg
+.mr.developer.cfg
+.plone*
 *.egg-info
 *.log
 *.mo
@@ -7,6 +10,7 @@
 # dirs
 bin/
 buildout-cache/
+checkversion*
 develop-eggs/
 eggs/
 htmlcov/
