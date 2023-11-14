@@ -16,6 +16,9 @@ import shutil
 import tempfile
 import unittest
 
+from zope.component import getUtility
+from zope.schema.interfaces import IVocabularyFactory
+
 
 class TestDmsfile(unittest.TestCase):
 
@@ -27,7 +30,7 @@ class TestDmsfile(unittest.TestCase):
         self.pc = self.portal.portal_catalog
         self.imf = self.portal['incoming-mail']
         self.omf = self.portal['outgoing-mail']
-        self.dir = self.portal['contacts']
+        self.diry = self.portal['contacts']
         self.tdir = tempfile.mkdtemp()
         print(self.tdir)
 
@@ -177,7 +180,7 @@ class TestDmsfile(unittest.TestCase):
         ie.create_or_update()
         obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
         self.assertEqual(len(obj.sender), 1)
-        self.assertEqual(obj.sender[0].to_object, self.dir.jeancourant['agent-electrabel'])
+        self.assertEqual(obj.sender[0].to_object, self.diry.jeancourant['agent-electrabel'])
         # internal held_positions: primary organization related held position will be selected
         params['external_id'] = u'01Z9999000000{:02d}'.format(2)
         msg = create_fake_message(CoreIncomingEmail, params)
@@ -192,9 +195,9 @@ class TestDmsfile(unittest.TestCase):
                              ['agent-secretariat', 'agent-grh', 'agent-communication', 'agent-budgets',
                               'agent-comptabilite', 'agent-batiments', 'agent-voiries', 'agent-evenements'])
         self.assertEqual(len(obj.sender), 1)
-        self.assertEqual(obj.sender[0].to_object, self.dir['personnel-folder']['agent']['agent-communication'])
+        self.assertEqual(obj.sender[0].to_object, self.diry['personnel-folder']['agent']['agent-communication'])
         # internal held_positions: no primary organization, only one held position will be selected
-        self.dir['personnel-folder']['agent'].primary_organization = None
+        self.diry['personnel-folder']['agent'].primary_organization = None
         params['external_id'] = u'01Z9999000000{:02d}'.format(3)
         msg = create_fake_message(CoreIncomingEmail, params)
         ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
@@ -202,7 +205,43 @@ class TestDmsfile(unittest.TestCase):
         ie.create_or_update()
         obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
         self.assertEqual(len(obj.sender), 1)
-        self.assertEqual(obj.sender[0].to_object, self.dir['personnel-folder']['agent']['agent-secretariat'])
+        self.assertEqual(obj.sender[0].to_object, self.diry['personnel-folder']['agent']['agent-secretariat'])
+
+    def test_IncomingEmail_treating_groups(self):
+        from imio.zamqp.dms.consumer import IncomingEmail  # import later to avoid core config error
+        params = {
+            'external_id': u'01Z9999000000', 'client_id': u'019999', 'type': u'EMAIL_E', 'version': 1,
+            'date': datetime.datetime(2021, 5, 18), 'update_date': None, 'user': u'testuser', 'file_md5': u'',
+            'file_metadata': {u'creator': u'scanner', u'scan_hour': u'13:16:29', u'scan_date': u'2021-05-18',
+                              u'filemd5': u'', u'filename': u'01Z999900000001.tar', u'pc': u'pc-scan01',
+                              u'user': u'testuser', u'filesize': 0}
+        }
+        metadata = {
+            'From': [['Jean Courant', 'jean.courant@electrabel.eb']], 'To': [['', 'debra.morgan@mpd.am']], 'Cc': [],
+            'Subject': 'Bloodstain pattern analysis', 'Origin': 'Agent forward',
+            'Agent': [['Agent', 'agent@MACOMMUNE.BE']]
+        }
+        # primary_organization defined
+        params['external_id'] = u'01Z9999000000{:02d}'.format(1)
+        msg = create_fake_message(CoreIncomingEmail, params)
+        ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
+        store_fake_content(self.tdir, IncomingEmail, params, metadata)
+        ie.create_or_update()
+        obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
+        self.assertEqual(obj.treating_groups,
+                         self.diry['plonegroup-organization']['direction-generale']['communication'].UID())
+        # primary_organization undefined
+        self.diry['personnel-folder']['agent'].primary_organization = None
+        params['external_id'] = u'01Z9999000000{:02d}'.format(2)
+        msg = create_fake_message(CoreIncomingEmail, params)
+        ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
+        store_fake_content(self.tdir, IncomingEmail, params, metadata)
+        ie.create_or_update()
+        obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
+        voc = getUtility(IVocabularyFactory, name=u'collective.dms.basecontent.treating_groups')
+        [(t.value, t.title) for t in voc(None)]  # noqa
+        self.assertNotEqual(obj.treating_groups,
+                            self.diry['plonegroup-organization']['direction-generale']['communication'].UID())
 
     def tearDown(self):
         print("removing:" + self.tdir)

@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 from collective.contact.plonegroup.config import get_registry_organizations
+from collective.contact.plonegroup.utils import get_person_from_userid
 from collective.contact.plonegroup.utils import organizations_with_suffixes
 from collective.dms.batchimport.utils import createDocument
 from collective.dms.batchimport.utils import log
@@ -11,6 +12,7 @@ from imio.dms.mail.interfaces import IPersonnelContact
 from imio.dms.mail.utils import create_period_folder
 from imio.dms.mail.utils import get_dms_config
 from imio.dms.mail.utils import sub_create
+from imio.helpers.cache import get_plone_groups_for_user
 from imio.helpers.security import get_user_from_criteria
 from imio.helpers.workflow import do_transitions
 from imio.zamqp.core import base
@@ -36,8 +38,6 @@ import tarfile
 
 
 cg_separator = ' ___ '
-
-# TODO add package tests
 
 # INCOMING MAILS #
 
@@ -422,12 +422,15 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     if dic['email'].lower() != agent_email:  # to be sure email is not a part of longer email
                         continue
                     userid = dic['userid']
-                    groups = api.group.get_groups(username=userid)
-                    agent_orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS)
+                    groups = get_plone_groups_for_user(user_id=userid)
+                    agent_orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
                     agent_active_orgs = [org for org in agent_orgs if org in active_orgs]
                     if agent_active_orgs:
-                        # TODO MuST use primary group
-                        document.treating_groups = agent_active_orgs[0]  # only take one
+                        agent = get_person_from_userid(userid)
+                        if agent and agent.primary_organization and agent.primary_organization in agent_active_orgs:
+                            document.treating_groups = agent.primary_organization
+                        else:
+                            document.treating_groups = agent_active_orgs[0]  # only take one
                         document.assigned_user = userid
                         break
 

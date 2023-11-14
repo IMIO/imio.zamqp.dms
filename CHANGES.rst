@@ -10,6 +10,8 @@ Changelog
 - In IncomingEmail consumer, when the sender email is an internal held position, we select only one position:
   the primary organization related one or the first one of the list but not all
   [sgeulette]
+- In IncomingEmail consumer, when the agent has a primary organization, we select it to set treating_groups.
+  [sgeulette]
 
 0.19 (2023-07-07)
 -----------------
