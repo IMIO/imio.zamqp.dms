@@ -423,6 +423,8 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                         continue
                     userid = dic['userid']
                     groups = get_plone_groups_for_user(user_id=userid)
+                    if 'encodeurs' in groups:  # do not select a treating_groups if an encoder has forwarded the email
+                        break
                     agent_orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
                     agent_active_orgs = [org for org in agent_orgs if org in active_orgs]
                     if agent_active_orgs:

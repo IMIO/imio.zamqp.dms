@@ -221,8 +221,19 @@ class TestDmsfile(unittest.TestCase):
             'Subject': 'Bloodstain pattern analysis', 'Origin': 'Agent forward',
             'Agent': [['Agent', 'agent@MACOMMUNE.BE']]
         }
-        # primary_organization defined
+        # agent is part of the encodeurs group
+        api.group.add_user(groupname='encodeurs', username='agent')
         params['external_id'] = u'01Z9999000000{:02d}'.format(1)
+        msg = create_fake_message(CoreIncomingEmail, params)
+        ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
+        store_fake_content(self.tdir, IncomingEmail, params, metadata)
+        ie.create_or_update()
+        obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
+        self.assertIsNone(obj.treating_groups)
+        self.assertIsNone(obj.assigned_user)
+        api.group.remove_user(groupname='encodeurs', username='agent')
+        # primary_organization defined
+        params['external_id'] = u'01Z9999000000{:02d}'.format(2)
         msg = create_fake_message(CoreIncomingEmail, params)
         ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
         store_fake_content(self.tdir, IncomingEmail, params, metadata)
@@ -232,7 +243,7 @@ class TestDmsfile(unittest.TestCase):
                          self.diry['plonegroup-organization']['direction-generale']['communication'].UID())
         # primary_organization undefined
         self.diry['personnel-folder']['agent'].primary_organization = None
-        params['external_id'] = u'01Z9999000000{:02d}'.format(2)
+        params['external_id'] = u'01Z9999000000{:02d}'.format(3)
         msg = create_fake_message(CoreIncomingEmail, params)
         ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
         store_fake_content(self.tdir, IncomingEmail, params, metadata)
