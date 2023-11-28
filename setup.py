@@ -31,8 +31,10 @@ setup(
     keywords='amqp dms document management system',
     author='IMIO',
     author_email='devs@imio.be',
-    url='https://github.com/imio/imio.zamqp.dms',
-    download_url='https://pypi.org/project/imio.zamqp.dms',
+    project_urls={
+        "PyPI": "https://pypi.python.org/pypi/imio.zamqp.dms",
+        "Source": "https://github.com/imio/imio.zamqp.dms",
+    },
     license='GPL version 2',
     packages=find_packages('src', exclude=['ez_setup']),
     namespace_packages=['imio', 'imio.zamqp'],

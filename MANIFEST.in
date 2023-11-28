@@ -1,4 +1,5 @@
 graft src/imio
 graft docs
 include *.rst *.txt
+include Makefile
 global-exclude *.pyc
