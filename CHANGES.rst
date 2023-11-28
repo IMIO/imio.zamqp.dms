@@ -2,8 +2,8 @@ Changelog
 =========
 
 
-0.20 (unreleased)
------------------
+0.20.0 (2023-11-28)
+-------------------
 
 - Set new setup
   [sgeulette]
