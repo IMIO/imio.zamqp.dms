@@ -5,8 +5,8 @@ Changelog
 0.20.1 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- Avoid error in `creating_group_split` when a group is not correct.
+  [sgeulette]
 
 0.20.0 (2023-11-28)
 -------------------

@@ -70,6 +70,8 @@ class CommonMethods(object):
             parts = file_metadata[metadata].split(cg_separator)
             if len(parts) > 1:
                 self.metadata[attr] = parts[1].strip()  # noqa
+            else:
+                continue
             factory = getUtility(IVocabularyFactory, voc)
             voc_i = factory(self.folder)  # noqa
             if self.metadata[attr] not in [term.value for term in voc_i._terms]:  # noqa
