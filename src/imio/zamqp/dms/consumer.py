@@ -250,8 +250,8 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 # Is there a new version because export failing or really a new sending
                 # Check if we are in a time delta of 20 hours: < = export failing else new sending
                 signed_file = result[0].getObject()
-                if (signed_file.scan_date and self.scan_fields['scan_date'] and
-                        self.scan_fields['scan_date'] - signed_file.scan_date) < datetime.timedelta(0, 72000):
+                if (signed_file.scan_date and self.scan_fields['scan_date']
+                        and self.scan_fields['scan_date'] - signed_file.scan_date) < datetime.timedelta(0, 72000):
                     self.update(result[0].getObject(), obj_file)
                 elif not params['PVS']:
                     # make a new file
@@ -266,8 +266,8 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 # register scan date on original model
                 the_file.scan_date = self.scan_fields['scan_date']
             if not params['PD']:
-                self.document.outgoing_date = (self.scan_fields['scan_date'] and self.scan_fields['scan_date'] or
-                                               datetime.datetime.now())
+                self.document.outgoing_date = (self.scan_fields['scan_date'] and self.scan_fields['scan_date']
+                                               or datetime.datetime.now())
                 self.document.reindexObject(idxs=('in_out_date', ))
             if not params['PC'] and (not self.document.is_email() or self.document.email_status):
                 # close
@@ -386,6 +386,14 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             log.info('document has been created (id: %s)' % document.id)
             catalog = api.portal.get_tool('portal_catalog')
 
+            # original_mail_date (sent date of relevant email)
+            if maildata.get('Original mail date'):
+                parsed_original_date = datetime.datetime.strptime(
+                    maildata.get('Original mail date'),
+                    '%Y-%m-%d',
+                )
+                document.original_mail_date = parsed_original_date
+
             # sender (all contacts with the "From" email)
             if maildata.get('From'):
                 if maildata['From'][0][0]:
@@ -394,7 +402,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 else:
                     oes = maildata['From'][0][1]
                 document.orig_sender_email = oes
-                results = catalog.unrestrictedSearchResults(email=maildata['From'][0][1],
+                results = catalog.unrestrictedSearchResults(email=maildata['From'][0][1].lower(),
                                                             portal_type=['organization', 'person', 'held_position'])
                 if results:
                     filtered = []
@@ -413,6 +421,49 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                                or internals[person])
                         filtered.append(hps[0])
                     document.sender = [RelationValue(intids.getId(ctc)) for ctc in filtered]
+
+            # get routing table from config
+            rt = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_routing")
+            for dic in rt:
+                {
+                    u"forward": u"agent",
+                    u"transfer_email_pat": u".*",
+                    u"original_email_pat": u"",
+                    u"tal_condition_1": u"",
+                    u"user_value": u"_transferer_",
+                    u"tal_condition_2": u"",
+                    u"tg_value": u"_primary_org_",
+                    u"tal_condition_3": u"",
+                    u"state_value": u""
+                }
+                users = {}
+                userid = None
+                assigned_user = None
+                tg = None
+                # assigned user
+                if maildata.get('Agent') and (dic["user_value"] == u"_transferer_" or dic["tg_value"] == u"_hp_"):
+                    agent_email = maildata['Agent'][0][1].lower()
+                    results = catalog.unrestrictedSearchResults(email=agent_email,
+                                                                portal_type=['held_position'],
+                                                                object_provides=IPersonnelContact.__identifier__)
+                    for brain in results:
+                        obj = brain._unrestrictedGetObject()
+                        person = obj.get_person()
+                        users.setdefault(person.userid, set()).add(obj.get_organization())
+                    if not users:
+                        for udic in get_user_from_criteria(self.site, email=agent_email):
+                            if udic['email'].lower() != agent_email:  # to be sure email is not a part of longer email
+                                continue
+                            groups = get_plone_groups_for_user(user_id=udic['userid'])
+                            orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
+                            users.setdefault(udic['userid'], set()).update(orgs)
+                    if len(users) > 1:
+                        # we keep the one with more hps
+                        userid = sorted(users.items(), key=lambda tup: len(tup[1]), reverse=True)[0][0]
+                        log.error('Multiple users found for agent email {}. Kept {}'.format(agent_email, userid))
+                    elif len(users) == 1:
+                        userid = users.keys()[0]
+
 
             # treating_groups (agent internal service, if there is one)
             # assigned_user (agent user; only if treating_groups assigned)
@@ -437,14 +488,6 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                             document.treating_groups = agent_active_orgs[0]  # only take one
                         document.assigned_user = userid
                         break
-
-            # original_mail_date (sent date of relevant email)
-            if maildata.get('Original mail date'):
-                parsed_original_date = datetime.datetime.strptime(
-                    maildata.get('Original mail date'),
-                    '%Y-%m-%d',
-                )
-                document.original_mail_date = parsed_original_date
 
             fw_tr = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.'
                                                    'iemail_manual_forward_transition')
