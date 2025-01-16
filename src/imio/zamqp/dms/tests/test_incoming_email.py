@@ -10,14 +10,13 @@ from imio.zamqp.dms.testing import store_fake_content
 from plone import api
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
+from zope.component import getUtility
+from zope.schema.interfaces import IVocabularyFactory
 
 import datetime
 import shutil
 import tempfile
 import unittest
-
-from zope.component import getUtility
-from zope.schema.interfaces import IVocabularyFactory
 
 
 class TestDmsfile(unittest.TestCase):
@@ -33,6 +32,8 @@ class TestDmsfile(unittest.TestCase):
         self.diry = self.portal['contacts']
         self.tdir = tempfile.mkdtemp()
         print(self.tdir)
+        self.routing_key = "imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_routing"
+        self.routing = api.portal.get_registry_record(self.routing_key)
 
     def test_IncomingEmail_flow(self):
         from imio.zamqp.dms.consumer import IncomingEmail  # import later to avoid core config error
@@ -221,6 +222,7 @@ class TestDmsfile(unittest.TestCase):
             'Subject': 'Bloodstain pattern analysis', 'Origin': 'Agent forward',
             'Agent': [['Agent', 'agent@MACOMMUNE.BE']]
         }
+
         # agent is part of the encodeurs group
         api.group.add_user(groupname='encodeurs', username='agent')
         params['external_id'] = u'01Z9999000000{:02d}'.format(1)

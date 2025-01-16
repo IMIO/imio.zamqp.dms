@@ -1,5 +1,5 @@
 # encoding: utf-8
-
+from collective.behavior.talcondition.utils import _evaluateExpression
 from collective.contact.plonegroup.config import get_registry_organizations
 from collective.contact.plonegroup.utils import get_person_from_userid
 from collective.contact.plonegroup.utils import organizations_with_suffixes
@@ -34,6 +34,7 @@ from zope.schema.interfaces import IVocabularyFactory
 import datetime
 import interfaces
 import json
+import re
 import tarfile
 
 
@@ -395,10 +396,11 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 document.original_mail_date = parsed_original_date
 
             # sender (all contacts with the "From" email)
+            oes_eml = u""
             if maildata.get('From'):
                 if maildata['From'][0][0]:
-                    realname, eml = maildata['From'][0]
-                    oes = u'"{0}" <{1}>'.format(unidecode(realname), eml)
+                    realname, oes_eml = maildata['From'][0]
+                    oes = u'"{0}" <{1}>'.format(unidecode(realname), oes_eml)
                 else:
                     oes = maildata['From'][0][1]
                 document.orig_sender_email = oes
@@ -422,9 +424,38 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                         filtered.append(hps[0])
                     document.sender = [RelationValue(intids.getId(ctc)) for ctc in filtered]
 
+            # before routing
+            users = {}
+            userid = None
+            agent_email = None
+            assigned_user = None
+            tg = None
+            # get a userid for the agent
+            if maildata.get('Agent'):
+                agent_email = maildata['Agent'][0][1].lower()
+                results = catalog.unrestrictedSearchResults(email=agent_email,
+                                                            portal_type=['held_position'],
+                                                            object_provides=IPersonnelContact.__identifier__)
+                for brain in results:
+                    obj = brain._unrestrictedGetObject()
+                    person = obj.get_person()
+                    users.setdefault(person.userid, set()).add(obj.get_organization().UID())
+                if not users:
+                    for udic in get_user_from_criteria(self.site, email=agent_email):
+                        if udic['email'].lower() != agent_email:  # to be sure email is not a part of longer email
+                            continue
+                        groups = get_plone_groups_for_user(user_id=udic['userid'])
+                        orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
+                        users.setdefault(udic['userid'], set()).update(orgs)
+                if len(users) > 1:
+                    # we keep the one with more hps
+                    userid = sorted(users.items(), key=lambda tup: len(tup[1]), reverse=True)[0][0]
+                    log.error('Multiple users found for agent email {}. Kept {}'.format(agent_email, userid))
+                elif len(users) == 1:
+                    userid = users.keys()[0]
             # get routing table from config
             rt = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_routing")
-            for dic in rt:
+            for dic in rt or []:
                 {
                     u"forward": u"agent",
                     u"transfer_email_pat": u".*",
@@ -436,34 +467,37 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     u"tal_condition_3": u"",
                     u"state_value": u""
                 }
-                users = {}
-                userid = None
-                assigned_user = None
-                tg = None
-                # assigned user
-                if maildata.get('Agent') and (dic["user_value"] == u"_transferer_" or dic["tg_value"] == u"_hp_"):
-                    agent_email = maildata['Agent'][0][1].lower()
-                    results = catalog.unrestrictedSearchResults(email=agent_email,
-                                                                portal_type=['held_position'],
-                                                                object_provides=IPersonnelContact.__identifier__)
-                    for brain in results:
-                        obj = brain._unrestrictedGetObject()
-                        person = obj.get_person()
-                        users.setdefault(person.userid, set()).add(obj.get_organization())
-                    if not users:
-                        for udic in get_user_from_criteria(self.site, email=agent_email):
-                            if udic['email'].lower() != agent_email:  # to be sure email is not a part of longer email
-                                continue
-                            groups = get_plone_groups_for_user(user_id=udic['userid'])
-                            orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
-                            users.setdefault(udic['userid'], set()).update(orgs)
-                    if len(users) > 1:
-                        # we keep the one with more hps
-                        userid = sorted(users.items(), key=lambda tup: len(tup[1]), reverse=True)[0][0]
-                        log.error('Multiple users found for agent email {}. Kept {}'.format(agent_email, userid))
-                    elif len(users) == 1:
-                        userid = users.keys()[0]
+                # check transfer_email
+                if dic["transfer_email_pat"].strip():
+                    if agent_email and not re.match(dic["transfer_email_pat"], agent_email):
+                        continue
+                # check original email sender
+                if dic["original_email_pat"].strip():
+                    if oes_eml and not re.match(dic["original_email_pat"], oes_eml):
+                        continue
+                # check condition 1
+                extra = {"maildata": maildata}
+                if userid:
+                    extra["member"] = api.user.get(userid)
+                if not _evaluateExpression(self.folder, expression=dic["tal_condition_1"], extra_expr_ctx=extra):
+                    continue
+                # assigned_user value
+                if dic["user_value"] == "_transferer_":
+                    assigned_user = userid
+                elif dic["user_value"] == "_empty_":
+                    assigned_user = None
+                else:
+                    assigned_user = dic["user_value"]
+                # check condition 2
+                extra["assigned_user"] = assigned_user
+                if not _evaluateExpression(self.folder, expression=dic["tal_condition_2"], extra_expr_ctx=extra):
+                    continue
+                # treating_groups value
 
+            if assigned_user:
+                document.assigned_user = assigned_user
+            if tg:
+                document.treating_groups = tg
 
             # treating_groups (agent internal service, if there is one)
             # assigned_user (agent user; only if treating_groups assigned)
