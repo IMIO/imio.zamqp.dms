@@ -224,6 +224,8 @@ class TestDmsfile(unittest.TestCase):
         }
 
         # agent is part of the encodeurs group
+        self.routing[0]["tg_value"] = u"_hp_"
+        api.portal.set_registry_record(self.routing_key, self.routing)
         api.group.add_user(groupname='encodeurs', username='agent')
         params['external_id'] = u'01Z9999000000{:02d}'.format(1)
         msg = create_fake_message(CoreIncomingEmail, params)

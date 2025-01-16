@@ -430,6 +430,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             agent_email = None
             assigned_user = None
             tg = None
+            active_orgs = get_registry_organizations()
             # get a userid for the agent
             if maildata.get('Agent'):
                 agent_email = maildata['Agent'][0][1].lower()
@@ -439,14 +440,16 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 for brain in results:
                     obj = brain._unrestrictedGetObject()
                     person = obj.get_person()
-                    users.setdefault(person.userid, set()).add(obj.get_organization().UID())
+                    org = obj.get_organization().UID()
+                    if org in active_orgs:
+                        users.setdefault(person.userid, set()).add(org)
                 if not users:
                     for udic in get_user_from_criteria(self.site, email=agent_email):
                         if udic['email'].lower() != agent_email:  # to be sure email is not a part of longer email
                             continue
                         groups = get_plone_groups_for_user(user_id=udic['userid'])
                         orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
-                        users.setdefault(udic['userid'], set()).update(orgs)
+                        users.setdefault(udic['userid'], set()).update([org for org in orgs if org in active_orgs])
                 if len(users) > 1:
                     # we keep the one with more hps
                     userid = sorted(users.items(), key=lambda tup: len(tup[1]), reverse=True)[0][0]
@@ -456,17 +459,6 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             # get routing table from config
             rt = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_routing")
             for dic in rt or []:
-                {
-                    u"forward": u"agent",
-                    u"transfer_email_pat": u".*",
-                    u"original_email_pat": u"",
-                    u"tal_condition_1": u"",
-                    u"user_value": u"_transferer_",
-                    u"tal_condition_2": u"",
-                    u"tg_value": u"_primary_org_",
-                    u"tal_condition_3": u"",
-                    u"state_value": u""
-                }
                 # check transfer_email
                 if dic["transfer_email_pat"].strip():
                     if agent_email and not re.match(dic["transfer_email_pat"], agent_email):
@@ -493,35 +485,75 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 if not _evaluateExpression(self.folder, expression=dic["tal_condition_2"], extra_expr_ctx=extra):
                     continue
                 # treating_groups value
+                if dic["tg_value"] == "_uni_org_only_":
+                    au_groups = get_plone_groups_for_user(user_id=assigned_user)
+                    au_orgs = organizations_with_suffixes(au_groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
+                    au_orgs = [org for org in au_orgs if org in active_orgs]
+                    # get the only one org of the assigned user
+                    if assigned_user and len(au_orgs) == 1:
+                        tg = au_orgs[0]
+                elif dic["tg_value"] == "_primary_org_":
+                    if assigned_user:
+                        person = get_person_from_userid(assigned_user, unrestricted=True, only_active=True)
+                        if person is None:
+                            person = get_person_from_userid(assigned_user, unrestricted=True)
+                        # get the primary org of the assigned user
+                        if person and person.primary_organization and person.primary_organization in active_orgs:
+                            tg = person.primary_organization
+                elif dic["tg_value"] == "_hp_":
+                    if assigned_user and assigned_user == userid:
+                        # we get an organization from the userid
+                        person = get_person_from_userid(assigned_user, unrestricted=True, only_active=True)
+                        if person is None:
+                            person = get_person_from_userid(assigned_user, unrestricted=True)
+                        if person:
+                            hps = person.get_held_positions()
+                            orgs = [hp.get_organization().UID() for hp in hps]
+                            orgs = [org for org in orgs if org in active_orgs]
+                            if orgs:
+                                if (len(orgs) > 1 and person.primary_organization
+                                        and person.primary_organization in active_orgs):
+                                    tg = person.primary_organization
+                                else:
+                                    tg = orgs[0]
+                elif dic["tg_value"] == "_empty_":
+                    tg = None  # already
+                else:
+                    tg = dic["tg_value"]
+                # check condition 3
+                extra["tg"] = tg
+                if not _evaluateExpression(self.folder, expression=dic["tal_condition_3"], extra_expr_ctx=extra):
+                    continue
 
             if assigned_user:
                 document.assigned_user = assigned_user
             if tg:
                 document.treating_groups = tg
 
+            # BEFORE ROUTING !!
             # treating_groups (agent internal service, if there is one)
             # assigned_user (agent user; only if treating_groups assigned)
-            if maildata.get('Agent'):  # an agent has forwarded the email
-                agent_email = maildata['Agent'][0][1].lower()
-                users = get_user_from_criteria(self.site, email=agent_email)
-                active_orgs = get_registry_organizations()
-                for dic in users:
-                    if dic['email'].lower() != agent_email:  # to be sure email is not a part of longer email
-                        continue
-                    userid = dic['userid']
-                    groups = get_plone_groups_for_user(user_id=userid)
-                    if 'encodeurs' in groups:  # do not select a treating_groups if an encoder has forwarded the email
-                        break
-                    agent_orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
-                    agent_active_orgs = [org for org in agent_orgs if org in active_orgs]
-                    if agent_active_orgs:
-                        agent = get_person_from_userid(userid)
-                        if agent and agent.primary_organization and agent.primary_organization in agent_active_orgs:
-                            document.treating_groups = agent.primary_organization
-                        else:
-                            document.treating_groups = agent_active_orgs[0]  # only take one
-                        document.assigned_user = userid
-                        break
+            # if maildata.get('Agent'):  # an agent has forwarded the email
+            #     agent_email = maildata['Agent'][0][1].lower()
+            #     users = get_user_from_criteria(self.site, email=agent_email)
+            #     active_orgs = get_registry_organizations()
+            #     for dic in users:
+            #         if dic['email'].lower() != agent_email:  # to be sure email is not a part of longer email
+            #             continue
+            #         userid = dic['userid']
+            #         groups = get_plone_groups_for_user(user_id=userid)
+            #         if 'encodeurs' in groups:  # do not select a treating_groups if an encoder has forwarded the email
+            #             break
+            #         agent_orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
+            #         agent_active_orgs = [org for org in agent_orgs if org in active_orgs]
+            #         if agent_active_orgs:
+            #             agent = get_person_from_userid(userid)
+            #             if agent and agent.primary_organization and agent.primary_organization in agent_active_orgs:
+            #                 document.treating_groups = agent.primary_organization
+            #             else:
+            #                 document.treating_groups = agent_active_orgs[0]  # only take one
+            #             document.assigned_user = userid
+            #             break
 
             fw_tr = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.'
                                                    'iemail_manual_forward_transition')
