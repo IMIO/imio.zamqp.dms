@@ -426,7 +426,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     document.sender = [RelationValue(intids.getId(ctc)) for ctc in filtered]
 
             # before routing
-            users = {}
+            users = {}  # TODO no need to be used later and no orgs needed
             userid = None
             agent_email = None
             assigned_user = None
@@ -563,13 +563,40 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             #             document.assigned_user = userid
             #             break
 
-            fw_tr = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.'
-                                                   'iemail_manual_forward_transition')
+            to_state = None
+            ss = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_state_set")
+            for dic in ss or []:
+                # check transfer_email
+                if dic["transfer_email_pat"].strip():
+                    if agent_email and not re.match(dic["transfer_email_pat"], agent_email):
+                        continue
+                # check original email sender
+                if dic["original_email_pat"].strip():
+                    if oes_eml and not re.match(dic["original_email_pat"], oes_eml):
+                        continue
+                # check condition 1
+                extra = {"maildata": maildata}
+                if userid:
+                    extra["member"] = api.user.get(userid)
+                if not _evaluateExpression(self.folder, expression=dic["tal_condition_1"], extra_expr_ctx=extra):
+                    continue
+                # state value
+                if dic["state_value"] == u"_n_plus_h_":
+                    pass
+                elif dic["state_value"] == u"_n_plus_l_":
+                    pass
+                else:
+                    pass
+
+            # BEFORE: state set rules
+            # fw_tr = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.'
+            #                                        'iemail_manual_forward_transition')
             # u'created', title=_(u'A user forwarded email will stay at creation level')),
             # u'manager', title=_(u'A user forwarded email will go to manager level')),
             # u'n_plus_h', title=_(u'A user forwarded email will go to highest N+ level, u'otherwise to agent')),
             # u'n_plus_l', title=_(u'A user forwarded email will go to lowest N+ level, u'otherwise to agent')),
             # u'agent', title=_(u'A user forwarded email will go to agent level')),
+            fw_tr = None
             if fw_tr != 'created':
                 to_state = 'created'
                 if document.treating_groups:
