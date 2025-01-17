@@ -2,6 +2,7 @@
 from collective.behavior.talcondition.utils import _evaluateExpression
 from collective.contact.plonegroup.config import get_registry_organizations
 from collective.contact.plonegroup.utils import get_person_from_userid
+from collective.contact.plonegroup.utils import get_selected_org_suffix_principal_ids
 from collective.contact.plonegroup.utils import organizations_with_suffixes
 from collective.dms.batchimport.utils import createDocument
 from collective.dms.batchimport.utils import log
@@ -525,10 +526,17 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 if not _evaluateExpression(self.folder, expression=dic["tal_condition_3"], extra_expr_ctx=extra):
                     continue
 
-            if assigned_user:
-                document.assigned_user = assigned_user
-            if tg:
+            if tg and assigned_user:
+                # check if user is well in correct groups
+                pids = get_selected_org_suffix_principal_ids(tg, IM_EDITOR_SERVICE_FUNCTIONS)
+                if assigned_user in pids:
+                    document.assigned_user = assigned_user
+                    document.treating_groups = tg
+            elif tg:
                 document.treating_groups = tg
+                document.assigned_user = None
+            elif assigned_user:
+                document.assigned_user = None
 
             # BEFORE ROUTING !!
             # treating_groups (agent internal service, if there is one)
