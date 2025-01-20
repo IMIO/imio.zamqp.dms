@@ -74,7 +74,7 @@ class TestDmsfile(unittest.TestCase):
             self.assertIsNone(obj.assigned_user)
             self.assertEqual(api.content.get_state(obj), 'created', reg_val)
             # known agent has forwarded
-            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 6)
+            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 8)
             msg = create_fake_message(CoreIncomingEmail, params)
             ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
             metadata2 = deepcopy(metadata)
@@ -83,7 +83,7 @@ class TestDmsfile(unittest.TestCase):
             store_fake_content(self.tdir, IncomingEmail, params, metadata2)
             ie.create_or_update()
             obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
-            self.assertIsNone(obj.sender)
+            self.assertIsNotNone(obj.sender)
             self.assertIsNotNone(obj.treating_groups)
             if tg:
                 self.assertEqual(tg, obj.treating_groups, reg_val)
@@ -105,7 +105,7 @@ class TestDmsfile(unittest.TestCase):
             self.ss[0]["state_value"] = reg_val
             api.portal.set_registry_record(self.ss_key, self.ss)
             # unknown agent has forwarded
-            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 11)
+            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 21)
             msg = create_fake_message(CoreIncomingEmail, params)
             ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
             store_fake_content(self.tdir, IncomingEmail, params, metadata)
@@ -115,7 +115,7 @@ class TestDmsfile(unittest.TestCase):
             self.assertIsNone(obj.assigned_user)
             self.assertEqual(api.content.get_state(obj), 'created', reg_val)
             # known agent has forwarded
-            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 16)
+            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 28)
             msg = create_fake_message(CoreIncomingEmail, params)
             ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
             metadata2 = deepcopy(metadata)
@@ -150,7 +150,7 @@ class TestDmsfile(unittest.TestCase):
             self.ss[0]["state_value"] = reg_val
             api.portal.set_registry_record(self.ss_key, self.ss)
             # unknown agent has forwarded
-            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 21)
+            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 41)
             msg = create_fake_message(CoreIncomingEmail, params)
             ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
             store_fake_content(self.tdir, IncomingEmail, params, metadata)
@@ -160,7 +160,7 @@ class TestDmsfile(unittest.TestCase):
             self.assertIsNone(obj.assigned_user)
             self.assertEqual(api.content.get_state(obj), 'created', reg_val)
             # known agent has forwarded
-            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 26)
+            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 48)
             msg = create_fake_message(CoreIncomingEmail, params)
             ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
             metadata2 = deepcopy(metadata)
