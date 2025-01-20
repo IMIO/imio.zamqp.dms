@@ -32,8 +32,6 @@ class TestDmsfile(unittest.TestCase):
         self.diry = self.portal['contacts']
         self.tdir = tempfile.mkdtemp()
         print(self.tdir)
-        self.routing_key = "imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_routing"
-        self.routing = api.portal.get_registry_record(self.routing_key)
 
     def test_IncomingEmail_flow(self):
         from imio.zamqp.dms.consumer import IncomingEmail  # import later to avoid core config error
@@ -49,12 +47,19 @@ class TestDmsfile(unittest.TestCase):
             'Subject': 'Bloodstain pattern analysis', 'Origin': 'Agent forward',
             'Agent': [['Vince Masuka', 'vince.masuka@mpd.am']]
         }
-        fw_tr_reg = 'imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_manual_forward_transition'
+
+        self.ss_key = "imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_state_set"
+        self.ss = api.portal.get_registry_record(self.ss_key)
+#        fw_tr_reg = 'imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_manual_forward_transition'
         # expected states following the registry and the treating_group presence
-        c_states = ('created', 'proposed_to_manager', 'proposed_to_agent', 'proposed_to_agent', 'proposed_to_agent')
+        c_states = ("created", "proposed_to_manager", "proposed_to_agent", "in_treatment", "closed",
+                    "proposed_to_agent", "proposed_to_agent")
         tg = None
-        for i, reg_val in enumerate((u'created', u'manager', u'n_plus_h', u'n_plus_l', u'agent')):
-            api.portal.set_registry_record(fw_tr_reg, reg_val)
+        for i, reg_val in enumerate((u"created", u"proposed_to_manager", u"proposed_to_agent", u"in_treatment",
+                                     u"closed", u"_n_plus_h_", u"_n_plus_l_")):
+            # api.portal.set_registry_record(fw_tr_reg, reg_val)
+            self.ss[0]["state_value"] = reg_val
+            api.portal.set_registry_record(self.ss_key, self.ss)
             # unknown agent has forwarded
             params['external_id'] = u'01Z9999000000{:02d}'.format(i + 1)
             msg = create_fake_message(CoreIncomingEmail, params)
@@ -73,7 +78,8 @@ class TestDmsfile(unittest.TestCase):
             msg = create_fake_message(CoreIncomingEmail, params)
             ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
             metadata2 = deepcopy(metadata)
-            metadata2['Agent'] = [['', 'agent@MACOMMUNE.be']]
+            metadata2["Agent"] = [["", "agent@MACOMMUNE.be"]]
+            metadata2["From"] = [["", "jean.courant@electrabel.eb"]]
             store_fake_content(self.tdir, IncomingEmail, params, metadata2)
             ie.create_or_update()
             obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
@@ -91,10 +97,13 @@ class TestDmsfile(unittest.TestCase):
                                                           run_dependencies=False)
         groupname_1 = '{}_n_plus_1'.format(tg)
         self.assertTrue(group_has_user(groupname_1))
-        c_states = ('created', 'proposed_to_manager', 'proposed_to_n_plus_1', 'proposed_to_n_plus_1',
-                    'proposed_to_agent')
-        for i, reg_val in enumerate((u'created', u'manager', u'n_plus_h', u'n_plus_l', u'agent')):
-            api.portal.set_registry_record(fw_tr_reg, reg_val)
+        c_states = ("created", "proposed_to_manager", "proposed_to_agent", "in_treatment", "closed",
+                    "proposed_to_n_plus_1", "proposed_to_n_plus_1")
+        for i, reg_val in enumerate((u"created", u"proposed_to_manager", u"proposed_to_agent", u"in_treatment",
+                                     u"closed", u"_n_plus_h_", u"_n_plus_l_")):
+            # api.portal.set_registry_record(fw_tr_reg, reg_val)
+            self.ss[0]["state_value"] = reg_val
+            api.portal.set_registry_record(self.ss_key, self.ss)
             # unknown agent has forwarded
             params['external_id'] = u'01Z9999000000{:02d}'.format(i + 11)
             msg = create_fake_message(CoreIncomingEmail, params)
@@ -110,7 +119,8 @@ class TestDmsfile(unittest.TestCase):
             msg = create_fake_message(CoreIncomingEmail, params)
             ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
             metadata2 = deepcopy(metadata)
-            metadata2['Agent'] = [['', 'agent@MACOMMUNE.be']]
+            metadata2["Agent"] = [["", "agent@MACOMMUNE.be"]]
+            metadata2["From"] = [["", "jean.courant@electrabel.eb"]]
             store_fake_content(self.tdir, IncomingEmail, params, metadata2)
             ie.create_or_update()
             obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
@@ -132,10 +142,13 @@ class TestDmsfile(unittest.TestCase):
         groupname_2 = '{}_n_plus_2'.format(tg)
         self.assertFalse(group_has_user(groupname_2))
         api.group.add_user(groupname=groupname_2, username='chef')
-        c_states = ('created', 'proposed_to_manager', 'proposed_to_n_plus_2', 'proposed_to_n_plus_1',
-                    'proposed_to_agent')
-        for i, reg_val in enumerate((u'created', u'manager', u'n_plus_h', u'n_plus_l', u'agent')):
-            api.portal.set_registry_record(fw_tr_reg, reg_val)
+        c_states = ("created", "proposed_to_manager", "proposed_to_agent", "in_treatment", "closed",
+                    "proposed_to_n_plus_2", "proposed_to_n_plus_1")
+        for i, reg_val in enumerate((u"created", u"proposed_to_manager", u"proposed_to_agent", u"in_treatment",
+                                     u"closed", u"_n_plus_h_", u"_n_plus_l_")):
+            # api.portal.set_registry_record(fw_tr_reg, reg_val)
+            self.ss[0]["state_value"] = reg_val
+            api.portal.set_registry_record(self.ss_key, self.ss)
             # unknown agent has forwarded
             params['external_id'] = u'01Z9999000000{:02d}'.format(i + 21)
             msg = create_fake_message(CoreIncomingEmail, params)
@@ -151,7 +164,8 @@ class TestDmsfile(unittest.TestCase):
             msg = create_fake_message(CoreIncomingEmail, params)
             ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
             metadata2 = deepcopy(metadata)
-            metadata2['Agent'] = [['', 'agent@MACOMMUNE.be']]
+            metadata2["Agent"] = [['', 'agent@MACOMMUNE.be']]
+            metadata2["From"] = [["", "jean.courant@electrabel.eb"]]
             store_fake_content(self.tdir, IncomingEmail, params, metadata2)
             ie.create_or_update()
             obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
@@ -222,6 +236,8 @@ class TestDmsfile(unittest.TestCase):
             'Subject': 'Bloodstain pattern analysis', 'Origin': 'Agent forward',
             'Agent': [['Agent', 'agent@MACOMMUNE.BE']]
         }
+        self.routing_key = "imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_routing"
+        self.routing = api.portal.get_registry_record(self.routing_key)
 
         # agent is part of the encodeurs group
         self.routing[0]["tg_value"] = u"_hp_"

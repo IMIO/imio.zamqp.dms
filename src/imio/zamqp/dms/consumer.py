@@ -457,7 +457,33 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     log.error('Multiple users found for agent email {}. Kept {}'.format(agent_email, userid))
                 elif len(users) == 1:
                     userid = users.keys()[0]
-            # get routing table from config
+
+            # BEFORE ROUTING !!
+            # treating_groups (agent internal service, if there is one)
+            # assigned_user (agent user; only if treating_groups assigned)
+            # if maildata.get('Agent'):  # an agent has forwarded the email
+            #     agent_email = maildata['Agent'][0][1].lower()
+            #     users = get_user_from_criteria(self.site, email=agent_email)
+            #     active_orgs = get_registry_organizations()
+            #     for dic in users:
+            #         if dic['email'].lower() != agent_email:  # to be sure email is not a part of longer email
+            #             continue
+            #         userid = dic['userid']
+            #         groups = get_plone_groups_for_user(user_id=userid)
+            #         if 'encodeurs' in groups:  # do not select a treating_groups if an encoder has forwarded the email
+            #             break
+            #         agent_orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
+            #         agent_active_orgs = [org for org in agent_orgs if org in active_orgs]
+            #         if agent_active_orgs:
+            #             agent = get_person_from_userid(userid)
+            #             if agent and agent.primary_organization and agent.primary_organization in agent_active_orgs:
+            #                 document.treating_groups = agent.primary_organization
+            #             else:
+            #                 document.treating_groups = agent_active_orgs[0]  # only take one
+            #             document.assigned_user = userid
+            #             break
+
+            # routing rules from config
             rt = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_routing")
             for dic in rt or []:
                 # check transfer_email
@@ -521,10 +547,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     tg = None  # already
                 else:
                     tg = dic["tg_value"]
-                # check condition 3
-                extra["tg"] = tg
-                if not _evaluateExpression(self.folder, expression=dic["tal_condition_3"], extra_expr_ctx=extra):
-                    continue
+                break
 
             if tg and assigned_user:
                 # check if user is well in correct groups
@@ -538,32 +561,9 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             elif assigned_user:
                 document.assigned_user = None
 
-            # BEFORE ROUTING !!
-            # treating_groups (agent internal service, if there is one)
-            # assigned_user (agent user; only if treating_groups assigned)
-            # if maildata.get('Agent'):  # an agent has forwarded the email
-            #     agent_email = maildata['Agent'][0][1].lower()
-            #     users = get_user_from_criteria(self.site, email=agent_email)
-            #     active_orgs = get_registry_organizations()
-            #     for dic in users:
-            #         if dic['email'].lower() != agent_email:  # to be sure email is not a part of longer email
-            #             continue
-            #         userid = dic['userid']
-            #         groups = get_plone_groups_for_user(user_id=userid)
-            #         if 'encodeurs' in groups:  # do not select a treating_groups if an encoder has forwarded the email
-            #             break
-            #         agent_orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
-            #         agent_active_orgs = [org for org in agent_orgs if org in active_orgs]
-            #         if agent_active_orgs:
-            #             agent = get_person_from_userid(userid)
-            #             if agent and agent.primary_organization and agent.primary_organization in agent_active_orgs:
-            #                 document.treating_groups = agent.primary_organization
-            #             else:
-            #                 document.treating_groups = agent_active_orgs[0]  # only take one
-            #             document.assigned_user = userid
-            #             break
-
+            # state set rules from config
             to_state = None
+            trs = []
             ss = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_state_set")
             for dic in ss or []:
                 # check transfer_email
@@ -581,50 +581,51 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 if not _evaluateExpression(self.folder, expression=dic["tal_condition_1"], extra_expr_ctx=extra):
                     continue
                 # state value
-                if dic["state_value"] == u"_n_plus_h_":
-                    pass
-                elif dic["state_value"] == u"_n_plus_l_":
-                    pass
-                else:
-                    pass
-
-            # BEFORE: state set rules
-            # fw_tr = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.'
-            #                                        'iemail_manual_forward_transition')
-            # u'created', title=_(u'A user forwarded email will stay at creation level')),
-            # u'manager', title=_(u'A user forwarded email will go to manager level')),
-            # u'n_plus_h', title=_(u'A user forwarded email will go to highest N+ level, u'otherwise to agent')),
-            # u'n_plus_l', title=_(u'A user forwarded email will go to lowest N+ level, u'otherwise to agent')),
-            # u'agent', title=_(u'A user forwarded email will go to agent level')),
-            fw_tr = None
-            if fw_tr != 'created':
-                to_state = 'created'
+                s_v = dic["state_value"]
+                if s_v == u"created":
+                    break
                 if document.treating_groups:
-                    trs = ['propose_to_n_plus_1', 'propose_to_n_plus_2', 'propose_to_n_plus_3', 'propose_to_n_plus_4',
-                           'propose_to_n_plus_5', 'propose_to_manager', 'propose_to_pre_manager']
-                    if fw_tr == 'manager':
-                        to_state = 'proposed_to_manager'
-                        trs = ['propose_to_manager', 'propose_to_pre_manager']
-                    elif fw_tr == 'agent' or '_n_plus_1' not in get_dms_config(['review_levels', 'dmsincomingmail']):
-                        to_state = 'proposed_to_agent'
-                    else:
+                    trs = ["propose_to_n_plus_1", "propose_to_n_plus_2", "propose_to_n_plus_3", "propose_to_n_plus_4",
+                           "propose_to_n_plus_5", "propose_to_manager", "propose_to_pre_manager"]
+                    to_state = s_v
+                    if s_v == u"proposed_to_premanager":
+                        trs = ["propose_to_pre_manager"]
+                    elif s_v == u"proposed_to_manager":
+                        trs = ["propose_to_manager", "propose_to_pre_manager"]
+                    elif s_v == u"proposed_to_agent":
+                        trs.insert(0, "propose_to_agent")
+                    elif s_v == u"in_treatment":
+                        trs.insert(0, "propose_to_agent")
+                        trs.insert(0, "treat")
+                    elif s_v == u"closed":
+                        trs.insert(0, "propose_to_agent")
+                        trs.insert(0, "treat")
+                        trs.insert(0, "close")
+                    elif s_v.startswith(u"proposed_to_n_plus_"):
+                        level = s_v.split(u"proposed_to_n_plus_")[-1]
+                        trs = [tr for tr in trs if tr[-1] == "r" or (tr[-1] in "12345" and tr[-1] >= level)]
+                    elif s_v in (u"_n_plus_h_", u"_n_plus_l_"):
                         to_state = 'proposed_to_agent'
                         tr_levels = get_dms_config(['transitions_levels', 'dmsincomingmail'])
                         wf_from_to = get_dms_config(['wf_from_to', 'dmsincomingmail', 'n_plus', 'to'])
                         st_from_tr = {tr: st for (st, tr) in wf_from_to}
                         if tr_levels['created'].get(document.treating_groups):
                             tr = tr_levels['created'][document.treating_groups][0]
-                            if fw_tr == 'n_plus_h':
+                            if s_v == '_n_plus_h_':
                                 to_state = st_from_tr[tr]
-                            elif fw_tr == 'n_plus_l':
+                            elif s_v == '_n_plus_l_':
                                 while tr != 'propose_to_agent':
                                     to_state = st_from_tr[tr]
                                     tr = tr_levels[to_state][document.treating_groups][0]
-                    if to_state == 'proposed_to_agent':
-                        trs.insert(0, 'propose_to_agent')
-                # we store a flag to indicate that this content is agent forwarded and has been transitioned to
-                if to_state != 'created':
-                    setattr(document, '_iem_agent', to_state)
+                        if to_state == 'proposed_to_agent':
+                            trs.insert(0, 'propose_to_agent')
+                    else:
+                        to_state = None
+                break
+
+            # we store a flag to indicate that this content is agent forwarded and has been transitioned to
+            if to_state is not None:
+                setattr(document, '_iem_agent', to_state)
                 i = 0
                 state = api.content.get_state(document)
                 pw = api.portal.get_tool("portal_workflow")
@@ -638,6 +639,57 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                         if state == to_state:
                             break
                     i += 1
+
+            # # BEFORE: state set rules
+            # # fw_tr = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.'
+            # #                                        'iemail_manual_forward_transition')
+            # # u'created', title=_(u'A user forwarded email will stay at creation level')),
+            # # u'manager', title=_(u'A user forwarded email will go to manager level')),
+            # # u'n_plus_h', title=_(u'A user forwarded email will go to highest N+ level, u'otherwise to agent')),
+            # # u'n_plus_l', title=_(u'A user forwarded email will go to lowest N+ level, u'otherwise to agent')),
+            # # u'agent', title=_(u'A user forwarded email will go to agent level')),
+            # fw_tr = None
+            # if fw_tr != 'created':
+            #     to_state = 'created'
+            #     if document.treating_groups:
+            #         trs = ['propose_to_n_plus_1', 'propose_to_n_plus_2', 'propose_to_n_plus_3', 'propose_to_n_plus_4',
+            #                'propose_to_n_plus_5', 'propose_to_manager', 'propose_to_pre_manager']
+            #         if fw_tr == 'manager':
+            #             to_state = 'proposed_to_manager'
+            #             trs = ['propose_to_manager', 'propose_to_pre_manager']
+            #         elif fw_tr == 'agent' or '_n_plus_1' not in get_dms_config(['review_levels', 'dmsincomingmail']):
+            #             to_state = 'proposed_to_agent'
+            #         else:
+            #             to_state = 'proposed_to_agent'
+            #             tr_levels = get_dms_config(['transitions_levels', 'dmsincomingmail'])
+            #             wf_from_to = get_dms_config(['wf_from_to', 'dmsincomingmail', 'n_plus', 'to'])
+            #             st_from_tr = {tr: st for (st, tr) in wf_from_to}
+            #             if tr_levels['created'].get(document.treating_groups):
+            #                 tr = tr_levels['created'][document.treating_groups][0]
+            #                 if fw_tr == 'n_plus_h':
+            #                     to_state = st_from_tr[tr]
+            #                 elif fw_tr == 'n_plus_l':
+            #                     while tr != 'propose_to_agent':
+            #                         to_state = st_from_tr[tr]
+            #                         tr = tr_levels[to_state][document.treating_groups][0]
+            #         if to_state == 'proposed_to_agent':
+            #             trs.insert(0, 'propose_to_agent')
+            #     # we store a flag to indicate that this content is agent forwarded and has been transitioned to
+            #     if to_state != 'created':
+            #         setattr(document, '_iem_agent', to_state)
+            #     i = 0
+            #     state = api.content.get_state(document)
+            #     pw = api.portal.get_tool("portal_workflow")
+            #     while state != to_state and i < 10:
+            #         for tr in trs:
+            #             try:
+            #                 pw.doActionFor(document, tr)
+            #             except WorkflowException:
+            #                 continue
+            #             state = api.content.get_state(document)
+            #             if state == to_state:
+            #                 break
+            #         i += 1
 
             file_object = NamedBlobFile(mf_tup[1], filename=mf_tup[0])
             self.metadata['file_title'] = mf_tup[0]
