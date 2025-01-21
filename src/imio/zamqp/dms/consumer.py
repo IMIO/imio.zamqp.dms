@@ -376,6 +376,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             self.metadata['reception_date'] = self.scan_fields['scan_date']
         mail_types_rec = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.mail_types')
         mail_types = [dic['value'] for dic in mail_types_rec if dic['active']]
+        # HERE dans quel cas on aurait "email" dans la liste des mail_types ?
         if u'email' in mail_types:
             self.metadata['mail_type'] = u'email'
         else:
@@ -408,6 +409,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 results = catalog.unrestrictedSearchResults(email=maildata['From'][0][1].lower(),
                                                             portal_type=['organization', 'person', 'held_position'])
                 if results:
+                    # HERE ??
                     filtered = []
                     internals = {}
                     for brain in results:
@@ -427,7 +429,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
 
             # before routing
             users = {}  # TODO no need to be used later and no orgs needed
-            userid = None
+            userid = None  # user ID of the agent
             agent_email = None
             assigned_user = None
             tg = None
@@ -508,7 +510,8 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 else:
                     assigned_user = dic["user_value"]
                 # check condition 2
-                if userid:
+                # HERE what is member ? It fails if userid exists but assigned_user is None
+                if userid and assigned_user:
                     extra["member"] = api.user.get(assigned_user)
                 extra["assigned_user"] = assigned_user
                 if not _evaluateExpression(self.folder, expression=dic["tal_condition_2"], extra_expr_ctx=extra):
@@ -521,6 +524,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     # get the only one org of the assigned user
                     if assigned_user and len(au_orgs) == 1:
                         tg = au_orgs[0]
+                    # HERE what happens if len(au_orgs) > 1 ?
                 elif dic["tg_value"] == "_primary_org_":
                     if assigned_user:
                         person = get_person_from_userid(assigned_user, unrestricted=True, only_active=True)
@@ -539,6 +543,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                             hps = person.get_held_positions()
                             orgs = [hp.get_organization().UID() for hp in hps]
                             orgs = [org for org in orgs if org in active_orgs]
+                            # HERE orgs = {hp.get_organization().UID() for hp in hps} & set(active_orgs)
                             if orgs:
                                 if (len(orgs) > 1 and person.primary_organization
                                         and person.primary_organization in active_orgs):
@@ -549,6 +554,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     tg = None  # already
                 else:
                     tg = dic["tg_value"]
+                # break the loop if we got this far, it means the routing rule is applied
                 break
 
             if tg and assigned_user:
@@ -637,6 +643,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 s_v = dic["state_value"]
                 if s_v == u"created":
                     break
+                # HERE what ??
                 if document.treating_groups:
                     trs = ["propose_to_n_plus_1", "propose_to_n_plus_2", "propose_to_n_plus_3", "propose_to_n_plus_4",
                            "propose_to_n_plus_5", "propose_to_manager", "propose_to_pre_manager"]
@@ -682,6 +689,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 i = 0
                 state = api.content.get_state(document)
                 pw = api.portal.get_tool("portal_workflow")
+                # HERE What ??
                 while state != to_state and i < 10:
                     for tr in trs:
                         try:
