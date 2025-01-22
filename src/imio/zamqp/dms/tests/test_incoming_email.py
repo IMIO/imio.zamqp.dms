@@ -31,64 +31,111 @@ class TestDmsfile(unittest.TestCase):
         self.omf = self.portal['outgoing-mail']
         self.diry = self.portal['contacts']
         self.tdir = tempfile.mkdtemp()
+        self.external_id_suffix = 1  # up to 9999 possible ids
         print(self.tdir)
 
-    def test_IncomingEmail_flow(self):
+    def create_incoming_email(self, params, metadata):
         from imio.zamqp.dms.consumer import IncomingEmail  # import later to avoid core config error
+
+        # Create fake messsage
+        params['external_id'] = u'01Z9999000000{:04d}'.format(self.external_id_suffix)
+        self.external_id_suffix += 1
+        msg = create_fake_message(CoreIncomingEmail, params)
+        ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
+        store_fake_content(self.tdir, IncomingEmail, params, metadata)
+
+        # Create incoming mail from message
+        ie.create_or_update()
+        obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
+        return obj
+
+    def test_IncomingEmail_flow(self):
+        def assert_flow(params, metadata, expected_output):
+            # expected states following the registry and the treating_group presence
+            expected_c_states = expected_output["c_states"]
+            tg = None
+            for i, i_registry_value in enumerate((u"created", u"proposed_to_manager", u"proposed_to_agent",
+                                                  u"in_treatment", u"closed", u"_n_plus_h_", u"_n_plus_l_")):
+                # Set settings to one of the possible value
+                self.state_set_registry_value[0]["state_value"] = i_registry_value
+                api.portal.set_registry_record(self.state_set_registry_key, self.state_set_registry_value)
+
+                obj = self.create_incoming_email(params, metadata)
+
+                # Quality control and assertions
+                self.assertEqual(obj.mail_type, u'courrier')
+                self.assertEqual(obj.orig_sender_email, expected_output["orig_mail_sender"])
+                if expected_output["sender"] is None:
+                    self.assertIsNone(obj.sender)
+                else:
+                    self.assertEqual(len(obj.sender), 1)
+                    self.assertEqual(obj.sender[0].to_object, expected_output["sender"])
+                if expected_output["treating_groups"] is None:
+                    self.assertIsNone(obj.treating_groups)
+                else:
+                    self.assertIsNotNone(obj.treating_groups)
+                if expected_output["assigned_user"] is None:
+                    self.assertIsNone(obj.assigned_user)
+                else:
+                    self.assertEqual(obj.assigned_user, expected_output["assigned_user"])
+                try:
+                    self.assertEqual(api.content.get_state(obj), expected_c_states[i], i_registry_value)
+                except AssertionError:
+                    import ipdb; ipdb.set_trace()
+                if tg:
+                    self.assertEqual(tg, obj.treating_groups, i_registry_value)
+                tg = obj.treating_groups
+
+            return tg
+
         params = {
-            'external_id': u'01Z9999000000', 'client_id': u'019999', 'type': u'EMAIL_E', 'version': 1,
+            'client_id': u'019999', 'type': u'EMAIL_E', 'version': 1,
             'date': datetime.datetime(2021, 5, 18), 'update_date': None, 'user': u'testuser', 'file_md5': u'',
             'file_metadata': {u'creator': u'scanner', u'scan_hour': u'13:16:29', u'scan_date': u'2021-05-18',
-                              u'filemd5': u'', u'filename': u'01Z999900000001.tar', u'pc': u'pc-scan01',
-                              u'user': u'testuser', u'filesize': 0}
+                                u'filemd5': u'', u'filename': u'01Z999900000001.tar', u'pc': u'pc-scan01',
+                                u'user': u'testuser', u'filesize': 0}
         }
-        metadata = {
-            'From': [['Dexter Morgan', 'dexter.morgan@mpd.am']], 'To': [['', 'debra.morgan@mpd.am']], 'Cc': [],
-            'Subject': 'Bloodstain pattern analysis', 'Origin': 'Agent forward',
-            'Agent': [['Vince Masuka', 'vince.masuka@mpd.am']]
-        }
+        metadatas = [
+            {
+                'From': [['Dexter Morgan', 'dexter.morgan@mpd.am']],
+                'To': [['', 'debra.morgan@mpd.am']],
+                'Cc': [],
+                'Subject': 'Bloodstain pattern analysis',
+                'Origin': 'Agent forward',
+                'Agent': [['Vince Masuka', 'vince.masuka@mpd.am']]
+            },
+            {
+                'From': [["", "jean.courant@electrabel.eb"]],
+                'To': [['', 'debra.morgan@mpd.am']],
+                'Cc': [],
+                'Subject': 'Bloodstain pattern analysis',
+                'Origin': 'Agent forward',
+                'Agent': [["", "agent@MACOMMUNE.be"]]
+            }
+        ]
+        expected_outputs = [
+            {
+                "c_states": ("created", "created", "created", "created", "created", "created", "created"),
+                "orig_mail_sender": u'"Dexter Morgan" <dexter.morgan@mpd.am>',
+                "sender": None,
+                "treating_groups": None,
+                "assigned_user": None,
+            },
+            {
+                "c_states": ("created", "proposed_to_manager", "proposed_to_agent", "in_treatment", "closed",
+                             "proposed_to_agent", "proposed_to_agent"),
+                "orig_mail_sender": u'jean.courant@electrabel.eb',
+                "sender": self.diry.jeancourant['agent-electrabel'],
+                "treating_groups": not None,
+                "assigned_user": u'agent',
+            },
+        ]
 
-        self.ss_key = "imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_state_set"
-        self.ss = api.portal.get_registry_record(self.ss_key)
-        # expected states following the registry and the treating_group presence
-        c_states = ("created", "proposed_to_manager", "proposed_to_agent", "in_treatment", "closed",
-                    "proposed_to_agent", "proposed_to_agent")
-        tg = None
-        for i, reg_val in enumerate((u"created", u"proposed_to_manager", u"proposed_to_agent", u"in_treatment",
-                                     u"closed", u"_n_plus_h_", u"_n_plus_l_")):
-            # api.portal.set_registry_record(fw_tr_reg, reg_val)
-            self.ss[0]["state_value"] = reg_val
-            api.portal.set_registry_record(self.ss_key, self.ss)
-            # unknown agent has forwarded
-            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 1)
-            msg = create_fake_message(CoreIncomingEmail, params)
-            ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-            store_fake_content(self.tdir, IncomingEmail, params, metadata)
-            ie.create_or_update()
-            obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
-            self.assertEqual(obj.mail_type, u'courrier')
-            self.assertEqual(obj.orig_sender_email, u'"Dexter Morgan" <dexter.morgan@mpd.am>')
-            self.assertIsNone(obj.sender)
-            self.assertIsNone(obj.treating_groups)
-            self.assertIsNone(obj.assigned_user)
-            self.assertEqual(api.content.get_state(obj), 'created', reg_val)
-            # known agent has forwarded
-            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 8)
-            msg = create_fake_message(CoreIncomingEmail, params)
-            ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-            metadata2 = deepcopy(metadata)
-            metadata2["Agent"] = [["", "agent@MACOMMUNE.be"]]
-            metadata2["From"] = [["", "jean.courant@electrabel.eb"]]
-            store_fake_content(self.tdir, IncomingEmail, params, metadata2)
-            ie.create_or_update()
-            obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
-            self.assertIsNotNone(obj.sender)
-            self.assertIsNotNone(obj.treating_groups)
-            if tg:
-                self.assertEqual(tg, obj.treating_groups, reg_val)
-            tg = obj.treating_groups
-            self.assertEqual(obj.assigned_user, u'agent')
-            self.assertEqual(api.content.get_state(obj), c_states[i], reg_val)
+        self.state_set_registry_key = "imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_state_set"
+        self.state_set_registry_value = api.portal.get_registry_record(self.state_set_registry_key)
+
+        for metadata, expected_output in zip(metadatas, expected_outputs):
+            tg = assert_flow(params, metadata, expected_output)
 
         # with n_plus_1 level
         self.portal.portal_setup.runImportStepFromProfile('profile-imio.dms.mail:singles',
@@ -96,36 +143,10 @@ class TestDmsfile(unittest.TestCase):
                                                           run_dependencies=False)
         groupname_1 = '{}_n_plus_1'.format(tg)
         self.assertTrue(group_has_user(groupname_1))
-        c_states = ("created", "proposed_to_manager", "proposed_to_agent", "in_treatment", "closed",
-                    "proposed_to_n_plus_1", "proposed_to_n_plus_1")
-        for i, reg_val in enumerate((u"created", u"proposed_to_manager", u"proposed_to_agent", u"in_treatment",
-                                     u"closed", u"_n_plus_h_", u"_n_plus_l_")):
-            # api.portal.set_registry_record(fw_tr_reg, reg_val)
-            self.ss[0]["state_value"] = reg_val
-            api.portal.set_registry_record(self.ss_key, self.ss)
-            # unknown agent has forwarded
-            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 21)
-            msg = create_fake_message(CoreIncomingEmail, params)
-            ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-            store_fake_content(self.tdir, IncomingEmail, params, metadata)
-            ie.create_or_update()
-            obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
-            self.assertIsNone(obj.treating_groups)
-            self.assertIsNone(obj.assigned_user)
-            self.assertEqual(api.content.get_state(obj), 'created', reg_val)
-            # known agent has forwarded
-            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 28)
-            msg = create_fake_message(CoreIncomingEmail, params)
-            ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-            metadata2 = deepcopy(metadata)
-            metadata2["Agent"] = [["", "agent@MACOMMUNE.be"]]
-            metadata2["From"] = [["", "jean.courant@electrabel.eb"]]
-            store_fake_content(self.tdir, IncomingEmail, params, metadata2)
-            ie.create_or_update()
-            obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
-            self.assertIsNotNone(obj.treating_groups)
-            self.assertEqual(obj.assigned_user, u'agent')
-            self.assertEqual(api.content.get_state(obj), c_states[i], reg_val)
+        expected_outputs[1]["c_states"] = ("created", "proposed_to_manager", "proposed_to_agent", "in_treatment",
+                                           "closed", "proposed_to_n_plus_1", "proposed_to_n_plus_1")
+        for metadata, expected_output in zip(metadatas, expected_outputs):
+            tg = assert_flow(params, metadata, expected_output)
 
         # with n_plus_2 level
         n_plus_2_params = {'validation_level': 2,
@@ -141,41 +162,15 @@ class TestDmsfile(unittest.TestCase):
         groupname_2 = '{}_n_plus_2'.format(tg)
         self.assertFalse(group_has_user(groupname_2))
         api.group.add_user(groupname=groupname_2, username='chef')
-        c_states = ("created", "proposed_to_manager", "proposed_to_agent", "in_treatment", "closed",
-                    "proposed_to_n_plus_2", "proposed_to_n_plus_1")
-        for i, reg_val in enumerate((u"created", u"proposed_to_manager", u"proposed_to_agent", u"in_treatment",
-                                     u"closed", u"_n_plus_h_", u"_n_plus_l_")):
-            # api.portal.set_registry_record(fw_tr_reg, reg_val)
-            self.ss[0]["state_value"] = reg_val
-            api.portal.set_registry_record(self.ss_key, self.ss)
-            # unknown agent has forwarded
-            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 41)
-            msg = create_fake_message(CoreIncomingEmail, params)
-            ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-            store_fake_content(self.tdir, IncomingEmail, params, metadata)
-            ie.create_or_update()
-            obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
-            self.assertIsNone(obj.treating_groups)
-            self.assertIsNone(obj.assigned_user)
-            self.assertEqual(api.content.get_state(obj), 'created', reg_val)
-            # known agent has forwarded
-            params['external_id'] = u'01Z9999000000{:02d}'.format(i + 48)
-            msg = create_fake_message(CoreIncomingEmail, params)
-            ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-            metadata2 = deepcopy(metadata)
-            metadata2["Agent"] = [['', 'agent@MACOMMUNE.be']]
-            metadata2["From"] = [["", "jean.courant@electrabel.eb"]]
-            store_fake_content(self.tdir, IncomingEmail, params, metadata2)
-            ie.create_or_update()
-            obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
-            self.assertIsNotNone(obj.treating_groups)
-            self.assertEqual(obj.assigned_user, u'agent')
-            self.assertEqual(api.content.get_state(obj), c_states[i], reg_val)
+        expected_outputs[1]["c_states"] = ("created", "proposed_to_manager", "proposed_to_agent", "in_treatment",
+                                           "closed", "proposed_to_n_plus_2", "proposed_to_n_plus_1")
+        for metadata, expected_output in zip(metadatas, expected_outputs):
+            tg = assert_flow(params, metadata, expected_output)
+
 
     def test_IncomingEmail_sender(self):
-        from imio.zamqp.dms.consumer import IncomingEmail  # import later to avoid core config error
         params = {
-            'external_id': u'01Z9999000000', 'client_id': u'019999', 'type': u'EMAIL_E', 'version': 1,
+            'client_id': u'019999', 'type': u'EMAIL_E', 'version': 1,
             'date': datetime.datetime(2021, 5, 18), 'update_date': None, 'user': u'testuser', 'file_md5': u'',
             'file_metadata': {u'creator': u'scanner', u'scan_hour': u'13:16:29', u'scan_date': u'2021-05-18',
                               u'filemd5': u'', u'filename': u'01Z999900000001.tar', u'pc': u'pc-scan01',
@@ -186,23 +181,14 @@ class TestDmsfile(unittest.TestCase):
             'Subject': 'Bloodstain pattern analysis', 'Origin': 'Agent forward',
             'Agent': [['Agent', 'agent@MACOMMUNE.BE']]
         }
+
         # external held_position
-        params['external_id'] = u'01Z9999000000{:02d}'.format(1)
-        msg = create_fake_message(CoreIncomingEmail, params)
-        ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-        store_fake_content(self.tdir, IncomingEmail, params, metadata)
-        ie.create_or_update()
-        obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
+        obj = self.create_incoming_email(params, metadata)
         self.assertEqual(len(obj.sender), 1)
         self.assertEqual(obj.sender[0].to_object, self.diry.jeancourant['agent-electrabel'])
+
         # internal held_positions: primary organization related held position will be selected
-        params['external_id'] = u'01Z9999000000{:02d}'.format(2)
-        msg = create_fake_message(CoreIncomingEmail, params)
-        ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-        metadata['From'] = [['', 'agent@macommune.be']]
-        store_fake_content(self.tdir, IncomingEmail, params, metadata)
-        ie.create_or_update()
-        obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
+        obj = self.create_incoming_email(params, metadata)
         senders = self.pc(email='agent@macommune.be', portal_type=['organization', 'person', 'held_position'])
         self.assertEqual(len(senders), 8)
         self.assertListEqual([br.id for br in senders],
@@ -210,21 +196,16 @@ class TestDmsfile(unittest.TestCase):
                               'agent-comptabilite', 'agent-batiments', 'agent-voiries', 'agent-evenements'])
         self.assertEqual(len(obj.sender), 1)
         self.assertEqual(obj.sender[0].to_object, self.diry['personnel-folder']['agent']['agent-communication'])
+
         # internal held_positions: no primary organization, only one held position will be selected
         self.diry['personnel-folder']['agent'].primary_organization = None
-        params['external_id'] = u'01Z9999000000{:02d}'.format(3)
-        msg = create_fake_message(CoreIncomingEmail, params)
-        ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-        store_fake_content(self.tdir, IncomingEmail, params, metadata)
-        ie.create_or_update()
-        obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
+        obj = self.create_incoming_email(params, metadata)
         self.assertEqual(len(obj.sender), 1)
         self.assertEqual(obj.sender[0].to_object, self.diry['personnel-folder']['agent']['agent-secretariat'])
 
     def test_IncomingEmail_treating_groups(self):
-        from imio.zamqp.dms.consumer import IncomingEmail  # import later to avoid core config error
         params = {
-            'external_id': u'01Z9999000000', 'client_id': u'019999', 'type': u'EMAIL_E', 'version': 1,
+            'client_id': u'019999', 'type': u'EMAIL_E', 'version': 1,
             'date': datetime.datetime(2021, 5, 18), 'update_date': None, 'user': u'testuser', 'file_md5': u'',
             'file_metadata': {u'creator': u'scanner', u'scan_hour': u'13:16:29', u'scan_date': u'2021-05-18',
                               u'filemd5': u'', u'filename': u'01Z999900000001.tar', u'pc': u'pc-scan01',
@@ -242,189 +223,22 @@ class TestDmsfile(unittest.TestCase):
         self.routing[0]["tg_value"] = u"_hp_"
         api.portal.set_registry_record(self.routing_key, self.routing)
         api.group.add_user(groupname='encodeurs', username='agent')
-        params['external_id'] = u'01Z9999000000{:02d}'.format(1)
-        msg = create_fake_message(CoreIncomingEmail, params)
-        ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-        store_fake_content(self.tdir, IncomingEmail, params, metadata)
-        ie.create_or_update()
-        obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
+        obj = self.create_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertIsNone(obj.assigned_user)
         api.group.remove_user(groupname='encodeurs', username='agent')
+
         # primary_organization defined
-        params['external_id'] = u'01Z9999000000{:02d}'.format(2)
-        msg = create_fake_message(CoreIncomingEmail, params)
-        ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-        store_fake_content(self.tdir, IncomingEmail, params, metadata)
-        ie.create_or_update()
-        obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
+        obj = self.create_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups,
                          self.diry['plonegroup-organization']['direction-generale']['communication'].UID())
+
         # primary_organization undefined
         self.diry['personnel-folder']['agent'].primary_organization = None
-        params['external_id'] = u'01Z9999000000{:02d}'.format(3)
-        msg = create_fake_message(CoreIncomingEmail, params)
-        ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-        store_fake_content(self.tdir, IncomingEmail, params, metadata)
-        ie.create_or_update()
-        obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
+        obj = self.create_incoming_email(params, metadata)
         voc = getUtility(IVocabularyFactory, name=u'collective.dms.basecontent.treating_groups')
         [(t.value, t.title) for t in voc(None)]  # noqa
-        # treating_groups is always changing: we cannot be sure of the result !!
-        # self.assertNotEqual(obj.treating_groups,
-        #                     self.diry['plonegroup-organization']['direction-generale']['communication'].UID())
 
     def tearDown(self):
         print("removing:" + self.tdir)
         shutil.rmtree(self.tdir, ignore_errors=True)
-
-    def test_IncomingEmail_multi(self):
-        from imio.zamqp.dms.consumer import IncomingEmail  # import later to avoid core config error
-
-        def flow(params, metadata):
-            self.ss_key = "imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_state_set"
-            self.ss = api.portal.get_registry_record(self.ss_key)
-            # expected states following the registry and the treating_group presence
-            c_states = ("created", "proposed_to_manager", "proposed_to_agent", "in_treatment", "closed",
-                        "proposed_to_agent", "proposed_to_agent")
-            tg = None
-            for i, reg_val in enumerate((u"created", u"proposed_to_manager", u"proposed_to_agent", u"in_treatment",
-                                         u"closed", u"_n_plus_h_", u"_n_plus_l_")):
-                # api.portal.set_registry_record(fw_tr_reg, reg_val)
-                self.ss[0]["state_value"] = reg_val
-                api.portal.set_registry_record(self.ss_key, self.ss)
-                # unknown agent has forwarded
-                params['external_id'] = u'01Z9999000000{:02d}'.format(i + 1)
-                msg = create_fake_message(CoreIncomingEmail, params)
-                ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-                store_fake_content(self.tdir, IncomingEmail, params, metadata)
-                ie.create_or_update()
-                obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
-                self.assertEqual(obj.mail_type, u'courrier')
-                self.assertEqual(obj.orig_sender_email, u'"Dexter Morgan" <dexter.morgan@mpd.am>')
-                self.assertIsNone(obj.sender)
-                self.assertIsNone(obj.treating_groups)
-                self.assertIsNone(obj.assigned_user)
-                self.assertEqual(api.content.get_state(obj), 'created', reg_val)
-                # known agent has forwarded
-                params['external_id'] = u'01Z9999000000{:02d}'.format(i + 8)
-                msg = create_fake_message(CoreIncomingEmail, params)
-                ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-                metadata2 = deepcopy(metadata)
-                metadata2["Agent"] = [["", "agent@MACOMMUNE.be"]]
-                metadata2["From"] = [["", "jean.courant@electrabel.eb"]]
-                store_fake_content(self.tdir, IncomingEmail, params, metadata2)
-                ie.create_or_update()
-                obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
-                self.assertIsNotNone(obj.sender)
-                self.assertIsNotNone(obj.treating_groups)
-                if tg:
-                    self.assertEqual(tg, obj.treating_groups, reg_val)
-                tg = obj.treating_groups
-                self.assertEqual(obj.assigned_user, u'agent')
-                self.assertEqual(api.content.get_state(obj), c_states[i], reg_val)
-
-            # with n_plus_1 level
-            self.portal.portal_setup.runImportStepFromProfile('profile-imio.dms.mail:singles',
-                                                              'imiodmsmail-im_n_plus_1_wfadaptation',
-                                                              run_dependencies=False)
-            groupname_1 = '{}_n_plus_1'.format(tg)
-            self.assertTrue(group_has_user(groupname_1))
-            c_states = ("created", "proposed_to_manager", "proposed_to_agent", "in_treatment", "closed",
-                        "proposed_to_n_plus_1", "proposed_to_n_plus_1")
-            for i, reg_val in enumerate((u"created", u"proposed_to_manager", u"proposed_to_agent", u"in_treatment",
-                                         u"closed", u"_n_plus_h_", u"_n_plus_l_")):
-                # api.portal.set_registry_record(fw_tr_reg, reg_val)
-                self.ss[0]["state_value"] = reg_val
-                api.portal.set_registry_record(self.ss_key, self.ss)
-                # unknown agent has forwarded
-                params['external_id'] = u'01Z9999000000{:02d}'.format(i + 21)
-                msg = create_fake_message(CoreIncomingEmail, params)
-                ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-                store_fake_content(self.tdir, IncomingEmail, params, metadata)
-                ie.create_or_update()
-                obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
-                self.assertIsNone(obj.treating_groups)
-                self.assertIsNone(obj.assigned_user)
-                self.assertEqual(api.content.get_state(obj), 'created', reg_val)
-                # known agent has forwarded
-                params['external_id'] = u'01Z9999000000{:02d}'.format(i + 28)
-                msg = create_fake_message(CoreIncomingEmail, params)
-                ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-                metadata2 = deepcopy(metadata)
-                metadata2["Agent"] = [["", "agent@MACOMMUNE.be"]]
-                metadata2["From"] = [["", "jean.courant@electrabel.eb"]]
-                store_fake_content(self.tdir, IncomingEmail, params, metadata2)
-                ie.create_or_update()
-                obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
-                self.assertIsNotNone(obj.treating_groups)
-                self.assertEqual(obj.assigned_user, u'agent')
-                self.assertEqual(api.content.get_state(obj), c_states[i], reg_val)
-
-            # with n_plus_2 level
-            n_plus_2_params = {'validation_level': 2,
-                               'state_title': u'Valider par le chef de département',
-                               'forward_transition_title': u'Proposer au chef de département',
-                               'backward_transition_title': u'Renvoyer au chef de département',
-                               'function_title': u'chef de département'}
-            sva = IMServiceValidation()
-            adapt_is_applied = sva.patch_workflow('incomingmail_workflow', **n_plus_2_params)
-            if adapt_is_applied:
-                add_applied_adaptation('imio.dms.mail.wfadaptations.IMServiceValidation',
-                                       'incomingmail_workflow', True, **n_plus_2_params)
-            groupname_2 = '{}_n_plus_2'.format(tg)
-            self.assertFalse(group_has_user(groupname_2))
-            api.group.add_user(groupname=groupname_2, username='chef')
-            c_states = ("created", "proposed_to_manager", "proposed_to_agent", "in_treatment", "closed",
-                        "proposed_to_n_plus_2", "proposed_to_n_plus_1")
-            for i, reg_val in enumerate((u"created", u"proposed_to_manager", u"proposed_to_agent", u"in_treatment",
-                                         u"closed", u"_n_plus_h_", u"_n_plus_l_")):
-                # api.portal.set_registry_record(fw_tr_reg, reg_val)
-                self.ss[0]["state_value"] = reg_val
-                api.portal.set_registry_record(self.ss_key, self.ss)
-                # unknown agent has forwarded
-                params['external_id'] = u'01Z9999000000{:02d}'.format(i + 41)
-                msg = create_fake_message(CoreIncomingEmail, params)
-                ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-                store_fake_content(self.tdir, IncomingEmail, params, metadata)
-                ie.create_or_update()
-                obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
-                self.assertIsNone(obj.treating_groups)
-                self.assertIsNone(obj.assigned_user)
-                self.assertEqual(api.content.get_state(obj), 'created', reg_val)
-                # known agent has forwarded
-                params['external_id'] = u'01Z9999000000{:02d}'.format(i + 48)
-                msg = create_fake_message(CoreIncomingEmail, params)
-                ie = IncomingEmail('incoming-mail', 'dmsincoming_email', msg)
-                metadata2 = deepcopy(metadata)
-                metadata2["Agent"] = [['', 'agent@MACOMMUNE.be']]
-                metadata2["From"] = [["", "jean.courant@electrabel.eb"]]
-                store_fake_content(self.tdir, IncomingEmail, params, metadata2)
-                ie.create_or_update()
-                obj = self.pc(portal_type='dmsincoming_email', sort_on='created')[-1].getObject()
-                self.assertIsNotNone(obj.treating_groups)
-                self.assertEqual(obj.assigned_user, u'agent')
-                self.assertEqual(api.content.get_state(obj), c_states[i], reg_val)
-
-        input_datas = [
-            {
-                "params": {
-                    'external_id': u'01Z9999000000', 'client_id': u'019999', 'type': u'EMAIL_E', 'version': 1,
-                    'date': datetime.datetime(2021, 5, 18), 'update_date': None, 'user': u'testuser', 'file_md5': u'',
-                    'file_metadata': {u'creator': u'scanner', u'scan_hour': u'13:16:29', u'scan_date': u'2021-05-18',
-                                      u'filemd5': u'', u'filename': u'01Z999900000001.tar', u'pc': u'pc-scan01',
-                                      u'user': u'testuser', u'filesize': 0}
-                },
-                "metadata": {
-                    'From': [['Dexter Morgan', 'dexter.morgan@mpd.am']], 'To': [['', 'debra.morgan@mpd.am']], 'Cc': [],
-                    'Subject': 'Bloodstain pattern analysis', 'Origin': 'Agent forward',
-                    'Agent': [['Vince Masuka', 'vince.masuka@mpd.am']]
-                }
-            }
-        ]
-        expected_outputs = [
-            "placeholder"
-        ]
-
-        for input_data, expected_output in zip(input_datas, expected_outputs):
-            flow(input_data["params"], input_data["metadata"])
