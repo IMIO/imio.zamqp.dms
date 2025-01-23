@@ -409,7 +409,6 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 results = catalog.unrestrictedSearchResults(email=maildata['From'][0][1].lower(),
                                                             portal_type=['organization', 'person', 'held_position'])
                 if results:
-                    # HERE ??
                     filtered = []
                     internals = {}
                     for brain in results:
@@ -421,9 +420,10 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                         internals.setdefault(person, []).append(obj)
                     # for internal positions, we keep only the corresponding primary org position or only one
                     for person in internals:
-                        hps = (person.primary_organization and [hp for hp in internals[person]
-                               if hp.get_organization().UID() == person.primary_organization]
-                               or internals[person])
+                        if person.primary_organization:
+                            hps = [hp for hp in internals[person] if hp.get_organization().UID() == person.primary_organization]
+                        else:
+                            hps = internals[person]
                         filtered.append(hps[0])
                     document.sender = [RelationValue(intids.getId(ctc)) for ctc in filtered]
 
@@ -541,11 +541,11 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                             person = get_person_from_userid(assigned_user, unrestricted=True)
                         if person:
                             hps = person.get_held_positions()
-                            orgs = [hp.get_organization().UID() for hp in hps]
-                            orgs = [org for org in orgs if org in active_orgs]
-                            # HERE orgs = {hp.get_organization().UID() for hp in hps} & set(active_orgs)
+                            orgs = {hp.get_organization().UID() for hp in hps}
+                            orgs = orgs & set(active_orgs)
                             if orgs:
-                                if (len(orgs) > 1 and person.primary_organization
+                                if (len(orgs) > 1
+                                        and person.primary_organization
                                         and person.primary_organization in active_orgs):
                                     tg = person.primary_organization
                                 else:
@@ -643,7 +643,6 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 s_v = dic["state_value"]
                 if s_v == u"created":
                     break
-                # HERE what ??
                 if document.treating_groups:
                     trs = ["propose_to_n_plus_1", "propose_to_n_plus_2", "propose_to_n_plus_3", "propose_to_n_plus_4",
                            "propose_to_n_plus_5", "propose_to_manager", "propose_to_pre_manager"]
@@ -689,7 +688,6 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 i = 0
                 state = api.content.get_state(document)
                 pw = api.portal.get_tool("portal_workflow")
-                # HERE What ??
                 while state != to_state and i < 10:
                     for tr in trs:
                         try:
