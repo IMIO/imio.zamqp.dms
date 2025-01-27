@@ -421,7 +421,8 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     # for internal positions, we keep only the corresponding primary org position or only one
                     for person in internals:
                         if person.primary_organization:
-                            hps = [hp for hp in internals[person] if hp.get_organization().UID() == person.primary_organization]
+                            hps = [hp for hp in internals[person]
+                                   if hp.get_organization().UID() == person.primary_organization]
                         else:
                             hps = internals[person]
                         filtered.append(hps[0])
@@ -510,9 +511,6 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 else:
                     assigned_user = dic["user_value"]
                 # check condition 2
-                # HERE what is member ? It fails if userid exists but assigned_user is None
-                if userid and assigned_user:
-                    extra["member"] = api.user.get(assigned_user)
                 extra["assigned_user"] = assigned_user
                 if not _evaluateExpression(self.folder, expression=dic["tal_condition_2"], extra_expr_ctx=extra):
                     continue
