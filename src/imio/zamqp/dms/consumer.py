@@ -376,7 +376,6 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             self.metadata['reception_date'] = self.scan_fields['scan_date']
         mail_types_rec = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.mail_types')
         mail_types = [dic['value'] for dic in mail_types_rec if dic['active']]
-        # HERE dans quel cas on aurait "email" dans la liste des mail_types ?
         if u'email' in mail_types:
             self.metadata['mail_type'] = u'email'
         else:
@@ -438,6 +437,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             # get a userid for the agent
             if maildata.get('Agent'):
                 agent_email = maildata['Agent'][0][1].lower()
+                document.agent_email = agent_email
                 results = catalog.unrestrictedSearchResults(email=agent_email,
                                                             portal_type=['held_position'],
                                                             object_provides=IPersonnelContact.__identifier__)
@@ -522,7 +522,6 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     # get the only one org of the assigned user
                     if assigned_user and len(au_orgs) == 1:
                         tg = au_orgs[0]
-                    # HERE what happens if len(au_orgs) > 1 ?
                 elif dic["tg_value"] == "_primary_org_":
                     if assigned_user:
                         person = get_person_from_userid(assigned_user, unrestricted=True, only_active=True)
@@ -539,11 +538,10 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                             person = get_person_from_userid(assigned_user, unrestricted=True)
                         if person:
                             hps = person.get_held_positions()
-                            orgs = {hp.get_organization().UID() for hp in hps}
-                            orgs = orgs & set(active_orgs)
+                            orgs = [hp.get_organization().UID() for hp in hps]
+                            orgs = [org for org in orgs if org in active_orgs]
                             if orgs:
-                                if (len(orgs) > 1
-                                        and person.primary_organization
+                                if (len(orgs) > 1 and person.primary_organization
                                         and person.primary_organization in active_orgs):
                                     tg = person.primary_organization
                                 else:
