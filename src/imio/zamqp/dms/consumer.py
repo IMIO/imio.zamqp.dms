@@ -437,7 +437,6 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             # get a userid for the agent
             if maildata.get('Agent'):
                 agent_email = maildata['Agent'][0][1].lower()
-                document.agent_email = agent_email
                 results = catalog.unrestrictedSearchResults(email=agent_email,
                                                             portal_type=['held_position'],
                                                             object_provides=IPersonnelContact.__identifier__)
