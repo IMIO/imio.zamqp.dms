@@ -1,7 +1,8 @@
 # encoding: utf-8
-
+from collective.behavior.talcondition.utils import _evaluateExpression
 from collective.contact.plonegroup.config import get_registry_organizations
 from collective.contact.plonegroup.utils import get_person_from_userid
+from collective.contact.plonegroup.utils import get_selected_org_suffix_principal_ids
 from collective.contact.plonegroup.utils import organizations_with_suffixes
 from collective.dms.batchimport.utils import createDocument
 from collective.dms.batchimport.utils import log
@@ -34,6 +35,7 @@ from zope.schema.interfaces import IVocabularyFactory
 import datetime
 import interfaces
 import json
+import re
 import tarfile
 
 
@@ -70,6 +72,8 @@ class CommonMethods(object):
             parts = file_metadata[metadata].split(cg_separator)
             if len(parts) > 1:
                 self.metadata[attr] = parts[1].strip()  # noqa
+            else:
+                continue
             factory = getUtility(IVocabularyFactory, voc)
             voc_i = factory(self.folder)  # noqa
             if self.metadata[attr] not in [term.value for term in voc_i._terms]:  # noqa
@@ -248,8 +252,8 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 # Is there a new version because export failing or really a new sending
                 # Check if we are in a time delta of 20 hours: < = export failing else new sending
                 signed_file = result[0].getObject()
-                if (signed_file.scan_date and self.scan_fields['scan_date'] and
-                        self.scan_fields['scan_date'] - signed_file.scan_date) < datetime.timedelta(0, 72000):
+                if (signed_file.scan_date and self.scan_fields['scan_date']
+                        and self.scan_fields['scan_date'] - signed_file.scan_date) < datetime.timedelta(0, 72000):
                     self.update(result[0].getObject(), obj_file)
                 elif not params['PVS']:
                     # make a new file
@@ -264,8 +268,8 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 # register scan date on original model
                 the_file.scan_date = self.scan_fields['scan_date']
             if not params['PD']:
-                self.document.outgoing_date = (self.scan_fields['scan_date'] and self.scan_fields['scan_date'] or
-                                               datetime.datetime.now())
+                self.document.outgoing_date = (self.scan_fields['scan_date'] and self.scan_fields['scan_date']
+                                               or datetime.datetime.now())
                 self.document.reindexObject(idxs=('in_out_date', ))
             if not params['PC'] and (not self.document.is_email() or self.document.email_status):
                 # close
@@ -384,15 +388,24 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             log.info('document has been created (id: %s)' % document.id)
             catalog = api.portal.get_tool('portal_catalog')
 
+            # original_mail_date (sent date of relevant email)
+            if maildata.get('Original mail date'):
+                parsed_original_date = datetime.datetime.strptime(
+                    maildata.get('Original mail date'),
+                    '%Y-%m-%d',
+                )
+                document.original_mail_date = parsed_original_date
+
             # sender (all contacts with the "From" email)
+            oes_eml = u""
             if maildata.get('From'):
                 if maildata['From'][0][0]:
-                    realname, eml = maildata['From'][0]
-                    oes = u'"{0}" <{1}>'.format(unidecode(realname), eml)
+                    realname, oes_eml = maildata['From'][0]
+                    oes = u'"{0}" <{1}>'.format(unidecode(realname), oes_eml)
                 else:
                     oes = maildata['From'][0][1]
                 document.orig_sender_email = oes
-                results = catalog.unrestrictedSearchResults(email=maildata['From'][0][1],
+                results = catalog.unrestrictedSearchResults(email=maildata['From'][0][1].lower(),
                                                             portal_type=['organization', 'person', 'held_position'])
                 if results:
                     filtered = []
@@ -406,79 +419,191 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                         internals.setdefault(person, []).append(obj)
                     # for internal positions, we keep only the corresponding primary org position or only one
                     for person in internals:
-                        hps = (person.primary_organization and [hp for hp in internals[person]
-                               if hp.get_organization().UID() == person.primary_organization]
-                               or internals[person])
+                        if person.primary_organization:
+                            hps = [hp for hp in internals[person]
+                                   if hp.get_organization().UID() == person.primary_organization]
+                        else:
+                            hps = internals[person]
                         filtered.append(hps[0])
                     document.sender = [RelationValue(intids.getId(ctc)) for ctc in filtered]
 
-            # treating_groups (agent internal service, if there is one)
-            # assigned_user (agent user; only if treating_groups assigned)
-            if maildata.get('Agent'):  # an agent has forwarded the email
+            # before routing
+            users = {}  # TODO no need to be used later and no orgs needed
+            userid = None  # user ID of the agent
+            agent_email = None
+            assigned_user = None
+            tg = None
+            active_orgs = get_registry_organizations()
+            # get a userid for the agent
+            if maildata.get('Agent'):
                 agent_email = maildata['Agent'][0][1].lower()
-                users = get_user_from_criteria(self.site, email=agent_email)
-                active_orgs = get_registry_organizations()
-                for dic in users:
-                    if dic['email'].lower() != agent_email:  # to be sure email is not a part of longer email
+                results = catalog.unrestrictedSearchResults(email=agent_email,
+                                                            portal_type=['held_position'],
+                                                            object_provides=IPersonnelContact.__identifier__)
+                for brain in results:
+                    obj = brain._unrestrictedGetObject()
+                    person = obj.get_person()
+                    org = obj.get_organization().UID()
+                    if org in active_orgs:
+                        users.setdefault(person.userid, set()).add(org)
+                if not users:
+                    for udic in get_user_from_criteria(self.site, email=agent_email):
+                        if udic['email'].lower() != agent_email:  # to be sure email is not a part of longer email
+                            continue
+                        groups = get_plone_groups_for_user(user_id=udic['userid'])
+                        orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
+                        users.setdefault(udic['userid'], set()).update([org for org in orgs if org in active_orgs])
+                if len(users) > 1:
+                    # we keep the one with more hps
+                    userid = sorted(users.items(), key=lambda tup: len(tup[1]), reverse=True)[0][0]
+                    log.error('Multiple users found for agent email {}. Kept {}'.format(agent_email, userid))
+                elif len(users) == 1:
+                    userid = users.keys()[0]
+
+            # routing rules from config
+            rt = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_routing")
+            for dic in rt or []:
+                # check transfer_email
+                if dic["transfer_email_pat"].strip():
+                    if agent_email and not re.match(dic["transfer_email_pat"], agent_email):
                         continue
-                    userid = dic['userid']
-                    groups = get_plone_groups_for_user(user_id=userid)
-                    if 'encodeurs' in groups:  # do not select a treating_groups if an encoder has forwarded the email
-                        break
-                    agent_orgs = organizations_with_suffixes(groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
-                    agent_active_orgs = [org for org in agent_orgs if org in active_orgs]
-                    if agent_active_orgs:
-                        agent = get_person_from_userid(userid)
-                        if agent and agent.primary_organization and agent.primary_organization in agent_active_orgs:
-                            document.treating_groups = agent.primary_organization
-                        else:
-                            document.treating_groups = agent_active_orgs[0]  # only take one
-                        document.assigned_user = userid
-                        break
+                # check original email sender
+                if dic["original_email_pat"].strip():
+                    if oes_eml and not re.match(dic["original_email_pat"], oes_eml):
+                        continue
+                # check condition 1
+                extra = {"maildata": maildata}
+                if userid:
+                    extra["member"] = api.user.get(userid)
+                if not _evaluateExpression(self.folder, expression=dic["tal_condition_1"], extra_expr_ctx=extra):
+                    continue
+                # assigned_user value
+                if dic["user_value"] == "_transferer_":
+                    assigned_user = userid
+                elif dic["user_value"] == "_empty_":
+                    assigned_user = None
+                else:
+                    assigned_user = dic["user_value"]
+                # check condition 2
+                extra["assigned_user"] = assigned_user
+                if not _evaluateExpression(self.folder, expression=dic["tal_condition_2"], extra_expr_ctx=extra):
+                    continue
+                # treating_groups value
+                if dic["tg_value"] == "_uni_org_only_":
+                    au_groups = get_plone_groups_for_user(user_id=assigned_user)
+                    au_orgs = organizations_with_suffixes(au_groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
+                    au_orgs = [org for org in au_orgs if org in active_orgs]
+                    # get the only one org of the assigned user
+                    if assigned_user and len(au_orgs) == 1:
+                        tg = au_orgs[0]
+                elif dic["tg_value"] == "_primary_org_":
+                    if assigned_user:
+                        person = get_person_from_userid(assigned_user, unrestricted=True, only_active=True)
+                        if person is None:
+                            person = get_person_from_userid(assigned_user, unrestricted=True)
+                        # get the primary org of the assigned user
+                        if person and person.primary_organization and person.primary_organization in active_orgs:
+                            tg = person.primary_organization
+                elif dic["tg_value"] == "_hp_":
+                    if assigned_user and assigned_user == userid:
+                        # we get an organization from the userid
+                        person = get_person_from_userid(assigned_user, unrestricted=True, only_active=True)
+                        if person is None:
+                            person = get_person_from_userid(assigned_user, unrestricted=True)
+                        if person:
+                            hps = person.get_held_positions()
+                            orgs = [hp.get_organization().UID() for hp in hps]
+                            orgs = [org for org in orgs if org in active_orgs]
+                            if orgs:
+                                if (len(orgs) > 1 and person.primary_organization
+                                        and person.primary_organization in active_orgs):
+                                    tg = person.primary_organization
+                                else:
+                                    tg = orgs[0]
+                elif dic["tg_value"] == "_empty_":
+                    tg = None  # already
+                else:
+                    tg = dic["tg_value"]
+                # break the loop if we got this far, it means the routing rule is applied
+                break
 
-            # original_mail_date (sent date of relevant email)
-            if maildata.get('Original mail date'):
-                parsed_original_date = datetime.datetime.strptime(
-                    maildata.get('Original mail date'),
-                    '%Y-%m-%d',
-                )
-                document.original_mail_date = parsed_original_date
+            if tg and assigned_user:
+                # check if user is well in correct groups
+                pids = get_selected_org_suffix_principal_ids(tg, IM_EDITOR_SERVICE_FUNCTIONS)
+                if assigned_user in pids:
+                    document.assigned_user = assigned_user
+                    document.treating_groups = tg
+            elif tg:
+                document.treating_groups = tg
+                document.assigned_user = None
+            elif assigned_user:
+                document.assigned_user = None
 
-            fw_tr = api.portal.get_registry_record('imio.dms.mail.browser.settings.IImioDmsMailConfig.'
-                                                   'iemail_manual_forward_transition')
-            # u'created', title=_(u'A user forwarded email will stay at creation level')),
-            # u'manager', title=_(u'A user forwarded email will go to manager level')),
-            # u'n_plus_h', title=_(u'A user forwarded email will go to highest N+ level, u'otherwise to agent')),
-            # u'n_plus_l', title=_(u'A user forwarded email will go to lowest N+ level, u'otherwise to agent')),
-            # u'agent', title=_(u'A user forwarded email will go to agent level')),
-            if fw_tr != 'created':
-                to_state = 'created'
+            # state set rules from config
+            to_state = None
+            trs = []
+            ss = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_state_set")
+            for dic in ss or []:
+                # check transfer_email
+                if dic["transfer_email_pat"].strip():
+                    if agent_email and not re.match(dic["transfer_email_pat"], agent_email):
+                        continue
+                # check original email sender
+                if dic["original_email_pat"].strip():
+                    if oes_eml and not re.match(dic["original_email_pat"], oes_eml):
+                        continue
+                # check condition 1
+                extra = {"maildata": maildata}
+                if userid:
+                    extra["member"] = api.user.get(userid)
+                if not _evaluateExpression(self.folder, expression=dic["tal_condition_1"], extra_expr_ctx=extra):
+                    continue
+                # state value
+                s_v = dic["state_value"]
+                if s_v == u"created":
+                    break
                 if document.treating_groups:
-                    trs = ['propose_to_n_plus_1', 'propose_to_n_plus_2', 'propose_to_n_plus_3', 'propose_to_n_plus_4',
-                           'propose_to_n_plus_5', 'propose_to_manager', 'propose_to_pre_manager']
-                    if fw_tr == 'manager':
-                        to_state = 'proposed_to_manager'
-                        trs = ['propose_to_manager', 'propose_to_pre_manager']
-                    elif fw_tr == 'agent' or '_n_plus_1' not in get_dms_config(['review_levels', 'dmsincomingmail']):
-                        to_state = 'proposed_to_agent'
-                    else:
+                    trs = ["propose_to_n_plus_1", "propose_to_n_plus_2", "propose_to_n_plus_3", "propose_to_n_plus_4",
+                           "propose_to_n_plus_5", "propose_to_manager", "propose_to_pre_manager"]
+                    to_state = s_v
+                    if s_v == u"proposed_to_premanager":
+                        trs = ["propose_to_pre_manager"]
+                    elif s_v == u"proposed_to_manager":
+                        trs = ["propose_to_manager", "propose_to_pre_manager"]
+                    elif s_v == u"proposed_to_agent":
+                        trs.insert(0, "propose_to_agent")
+                    elif s_v == u"in_treatment":
+                        trs.insert(0, "propose_to_agent")
+                        trs.insert(0, "treat")
+                    elif s_v == u"closed":
+                        trs.insert(0, "propose_to_agent")
+                        trs.insert(0, "treat")
+                        trs.insert(0, "close")
+                    elif s_v.startswith(u"proposed_to_n_plus_"):
+                        level = s_v.split(u"proposed_to_n_plus_")[-1]
+                        trs = [tr for tr in trs if tr[-1] == "r" or (tr[-1] in "12345" and tr[-1] >= level)]
+                    elif s_v in (u"_n_plus_h_", u"_n_plus_l_"):
                         to_state = 'proposed_to_agent'
                         tr_levels = get_dms_config(['transitions_levels', 'dmsincomingmail'])
                         wf_from_to = get_dms_config(['wf_from_to', 'dmsincomingmail', 'n_plus', 'to'])
                         st_from_tr = {tr: st for (st, tr) in wf_from_to}
                         if tr_levels['created'].get(document.treating_groups):
                             tr = tr_levels['created'][document.treating_groups][0]
-                            if fw_tr == 'n_plus_h':
+                            if s_v == '_n_plus_h_':
                                 to_state = st_from_tr[tr]
-                            elif fw_tr == 'n_plus_l':
+                            elif s_v == '_n_plus_l_':
                                 while tr != 'propose_to_agent':
                                     to_state = st_from_tr[tr]
                                     tr = tr_levels[to_state][document.treating_groups][0]
-                    if to_state == 'proposed_to_agent':
-                        trs.insert(0, 'propose_to_agent')
-                # we store a flag to indicate that this content is agent forwarded and has been transitioned to
-                if to_state != 'created':
-                    setattr(document, '_iem_agent', to_state)
+                        if to_state == 'proposed_to_agent':
+                            trs.insert(0, 'propose_to_agent')
+                    else:
+                        to_state = None
+                break
+
+            # we store a flag to indicate that this content is agent forwarded and has been transitioned to
+            if to_state is not None:
+                setattr(document, '_iem_agent', to_state)
                 i = 0
                 state = api.content.get_state(document)
                 pw = api.portal.get_tool("portal_workflow")

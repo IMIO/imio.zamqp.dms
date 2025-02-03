@@ -46,7 +46,6 @@ setup(
         'Products.GenericSetup>=1.8.2',
         'setuptools',
         'imio.dms.mail',
-        'imio.helpers>=0.71',
         'imio.zamqp.core'
     ],
     extras_require={
