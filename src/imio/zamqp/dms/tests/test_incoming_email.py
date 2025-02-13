@@ -303,7 +303,7 @@ class TestDmsfile(unittest.TestCase):
         obj = self.create_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertIsNone(obj.assigned_user)
-        routing[0]["transfer_email_pat"] = u".*@commune.be"
+        routing[0]["transfer_email_pat"] = u".*@macommune.be"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.create_incoming_email(params, metadata)
         self.assertIsNotNone(obj.treating_groups)
