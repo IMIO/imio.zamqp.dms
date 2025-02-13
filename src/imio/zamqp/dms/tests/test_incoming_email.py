@@ -297,6 +297,41 @@ class TestDmsfile(unittest.TestCase):
             },
         ]
         api.portal.set_registry_record(routing_key, routing)
+        # check patterns
+        routing[0]["transfer_email_pat"] = u".*@space.x"
+        api.portal.set_registry_record(routing_key, routing)
+        obj = self.create_incoming_email(params, metadata)
+        self.assertIsNone(obj.treating_groups)
+        self.assertIsNone(obj.assigned_user)
+        routing[0]["transfer_email_pat"] = u".*@commune.be"
+        api.portal.set_registry_record(routing_key, routing)
+        obj = self.create_incoming_email(params, metadata)
+        self.assertIsNotNone(obj.treating_groups)
+        self.assertIsNotNone(obj.assigned_user)
+        routing[0]["original_email_pat"] = u".*@space.x"
+        api.portal.set_registry_record(routing_key, routing)
+        obj = self.create_incoming_email(params, metadata)
+        self.assertIsNone(obj.treating_groups)
+        self.assertIsNone(obj.assigned_user)
+        routing[0]["original_email_pat"] = u".*@electrabel.eb"
+        api.portal.set_registry_record(routing_key, routing)
+        obj = self.create_incoming_email(params, metadata)
+        self.assertIsNotNone(obj.treating_groups)
+        self.assertIsNotNone(obj.assigned_user)
+        # check condition1
+        routing[0]["original_email_pat"] = u""
+        routing[0]["transfer_email_pat"] = u""
+        routing[0]["tal_condition_1"] = u"python:False"
+        api.portal.set_registry_record(routing_key, routing)
+        obj = self.create_incoming_email(params, metadata)
+        self.assertIsNone(obj.treating_groups)
+        self.assertIsNone(obj.assigned_user)
+        routing[0]["tal_condition_1"] = u"python:True"
+        api.portal.set_registry_record(routing_key, routing)
+        obj = self.create_incoming_email(params, metadata)
+        self.assertIsNotNone(obj.treating_groups)
+        self.assertIsNotNone(obj.assigned_user)
+        routing[0]["tal_condition_1"] = u""
         # assigner_user
         # _empty_
         routing[0]["user_value"] = u"_empty_"
