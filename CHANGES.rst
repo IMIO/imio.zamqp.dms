@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.20.1 (unreleased)
+0.21.0 (2025-02-20)
 -------------------
 
 - Avoid error in `creating_group_split` when a group is not correct.
