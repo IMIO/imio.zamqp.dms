@@ -9,6 +9,8 @@ Changelog
   [sgeulette]
 - Taken into account routing table in `IncomingEmail` consumer.
   [sgeulette]
+- Taken into account state_set table in `IncomingEmail` consumer.
+  [sgeulette]
 
 0.20.0 (2023-11-28)
 -------------------
