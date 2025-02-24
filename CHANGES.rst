@@ -5,8 +5,8 @@ Changelog
 0.21.1 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- Corrected error when a primary_organization held_position was not found with the given email
+  [sgeulette]
 
 0.21.0 (2025-02-20)
 -------------------

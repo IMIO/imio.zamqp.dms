@@ -419,10 +419,12 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                         internals.setdefault(person, []).append(obj)
                     # for internal positions, we keep only the corresponding primary org position or only one
                     for person in internals:
+                        hps = []
                         if person.primary_organization:
                             hps = [hp for hp in internals[person]
                                    if hp.get_organization().UID() == person.primary_organization]
-                        else:
+                            # maybe no hps if primary org held_position has another email by example
+                        if not hps:
                             hps = internals[person]
                         filtered.append(hps[0])
                     document.sender = [RelationValue(intids.getId(ctc)) for ctc in filtered]
