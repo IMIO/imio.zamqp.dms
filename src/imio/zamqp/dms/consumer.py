@@ -466,12 +466,12 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             rt = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_routing")
             for dic in rt or []:
                 # check transfer_email
-                if dic["transfer_email_pat"].strip():
-                    if agent_email and not re.match(dic["transfer_email_pat"], agent_email):
+                if dic["transfer_email_pat"] and dic["transfer_email_pat"].strip():
+                    if agent_email and not re.match(dic["transfer_email_pat"].strip(), agent_email):
                         continue
                 # check original email sender
-                if dic["original_email_pat"].strip():
-                    if oes_eml and not re.match(dic["original_email_pat"], oes_eml):
+                if dic["original_email_pat"] and dic["original_email_pat"].strip():
+                    if oes_eml and not re.match(dic["original_email_pat"].strip(), oes_eml):
                         continue
                 # check condition 1
                 extra = {"maildata": maildata}
@@ -547,12 +547,12 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             ss = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_state_set")
             for dic in ss or []:
                 # check transfer_email
-                if dic["transfer_email_pat"].strip():
-                    if agent_email and not re.match(dic["transfer_email_pat"], agent_email):
+                if dic["transfer_email_pat"] and dic["transfer_email_pat"].strip():
+                    if agent_email and not re.match(dic["transfer_email_pat"].strip(), agent_email):
                         continue
                 # check original email sender
-                if dic["original_email_pat"].strip():
-                    if oes_eml and not re.match(dic["original_email_pat"], oes_eml):
+                if dic["original_email_pat"] and dic["original_email_pat"].strip():
+                    if oes_eml and not re.match(dic["original_email_pat"].strip(), oes_eml):
                         continue
                 # check condition 1
                 extra = {"maildata": maildata}

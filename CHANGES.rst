@@ -7,6 +7,8 @@ Changelog
 
 - Corrected error when a primary_organization held_position was not found with the given email
   [sgeulette]
+- Corrected error when routing table pattern field is None
+  [sgeulette]
 
 0.21.0 (2025-02-20)
 -------------------

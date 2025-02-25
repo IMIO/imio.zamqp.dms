@@ -319,8 +319,8 @@ class TestDmsfile(unittest.TestCase):
         self.assertIsNotNone(obj.treating_groups)
         self.assertIsNotNone(obj.assigned_user)
         # check condition1
-        routing[0]["original_email_pat"] = u""
-        routing[0]["transfer_email_pat"] = u""
+        routing[0]["original_email_pat"] = None
+        routing[0]["transfer_email_pat"] = None
         routing[0]["tal_condition_1"] = u"python:False"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.create_incoming_email(params, metadata)
