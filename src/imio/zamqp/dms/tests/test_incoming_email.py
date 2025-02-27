@@ -331,7 +331,7 @@ class TestDmsfile(unittest.TestCase):
         obj = self.create_incoming_email(params, metadata)
         self.assertIsNotNone(obj.treating_groups)
         self.assertIsNotNone(obj.assigned_user)
-        routing[0]["tal_condition_1"] = u""
+        routing[0]["tal_condition_1"] = None
         # assigner_user
         # _empty_
         routing[0]["user_value"] = u"_empty_"
