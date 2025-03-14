@@ -515,6 +515,15 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                         # get the primary org of the assigned user
                         if person and person.primary_organization and person.primary_organization in active_orgs:
                             tg = person.primary_organization
+                        else:
+                            # if no primary org, check if the user has only one org
+                            au_groups = get_plone_groups_for_user(user_id=assigned_user)
+                            au_orgs = organizations_with_suffixes(
+                                au_groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True
+                            )
+                            au_orgs = [org for org in au_orgs if org in active_orgs]
+                            if len(au_orgs) == 1:
+                                tg = au_orgs[0]
                 elif dic["tg_value"] == "_hp_":
                     if assigned_user and assigned_user == agent_id:
                         # we get an organization from the agent_id
