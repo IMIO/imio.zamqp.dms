@@ -314,7 +314,7 @@ class TestDmsfile(unittest.TestCase):
         routing[0]["tal_condition_2"] = u"python:False"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.create_incoming_email(params, metadata)
-        self.assertIsNone(obj.assigned_user)
+        self.assertEqual(obj.assigned_user, u"agent1")
         self.assertIsNone(obj.treating_groups)
 
     def test_IncomingEmail_sender(self):
@@ -498,7 +498,7 @@ class TestDmsfile(unittest.TestCase):
         self.pf["agent"].primary_organization = None
         obj = self.create_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
-        self.assertIsNone(obj.assigned_user)
+        self.assertEqual(obj.assigned_user, "agent")
         # _hp_
         self.pf["agent"].primary_organization = None
         routing[0]["tg_value"] = u"_hp_"
@@ -514,7 +514,7 @@ class TestDmsfile(unittest.TestCase):
         routing[0]["tg_value"] = u"_empty_"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.create_incoming_email(params, metadata)
-        self.assertIsNone(obj.assigned_user)
+        self.assertEqual(obj.assigned_user, "agent")
         self.assertIsNone(obj.treating_groups)
         # defined group
         routing[0]["tg_value"] = self.pgof["direction-generale"]["grh"].UID()
