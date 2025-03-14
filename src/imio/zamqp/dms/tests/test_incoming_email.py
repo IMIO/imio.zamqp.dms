@@ -499,7 +499,26 @@ class TestDmsfile(unittest.TestCase):
         obj = self.create_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertEqual(obj.assigned_user, "agent")
+        metadata["Agent"] = [["", "agent1@macommune.be"]]
+        self.pf["agent1"]["agent-evenements"].get_person().primary_organization = None
+        obj = self.create_incoming_email(params, metadata)
+        self.assertEqual(obj.treating_groups, self.pgof["evenements"].UID())
+        self.assertEqual(obj.assigned_user, "agent1")
+        api.group.add_user(
+            groupname="{}_encodeur".format(self.pgof["direction-generale"]["communication"].UID()), username="agent1"
+        )
+        api.group.add_user(
+            groupname="{}_editeur".format(self.pgof["direction-generale"]["communication"].UID()), username="agent1"
+        )
+        obj = self.create_incoming_email(params, metadata)
+        self.assertIsNone(obj.treating_groups)
+        self.assertEqual(obj.assigned_user, "agent1")
+        self.pf["agent1"]["agent-evenements"].get_person().primary_organization = self.pgof["evenements"].UID()
+        obj = self.create_incoming_email(params, metadata)
+        self.assertEqual(obj.treating_groups, self.pgof["evenements"].UID())
+        self.assertEqual(obj.assigned_user, "agent1")
         # _hp_
+        metadata["Agent"] = [["", "agent@macommune.be"]]
         self.pf["agent"].primary_organization = None
         routing[0]["tg_value"] = u"_hp_"
         api.portal.set_registry_record(routing_key, routing)
