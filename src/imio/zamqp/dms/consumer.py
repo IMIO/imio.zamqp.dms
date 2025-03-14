@@ -431,7 +431,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
 
             # before routing
             users = {}  # TODO no need to be used later and no orgs needed
-            userid = None  # user ID of the agent
+            agent_id = None  # user ID of the agent
             agent_email = None
             assigned_user = None
             tg = None
@@ -457,10 +457,10 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                         users.setdefault(udic['userid'], set()).update([org for org in orgs if org in active_orgs])
                 if len(users) > 1:
                     # we keep the one with more hps
-                    userid = sorted(users.items(), key=lambda tup: len(tup[1]), reverse=True)[0][0]
-                    log.error('Multiple users found for agent email {}. Kept {}'.format(agent_email, userid))
+                    agent_id = sorted(users.items(), key=lambda tup: len(tup[1]), reverse=True)[0][0]
+                    log.error('Multiple users found for agent email {}. Kept {}'.format(agent_email, agent_id))
                 elif len(users) == 1:
-                    userid = users.keys()[0]
+                    agent_id = users.keys()[0]
 
             # routing rules from config
             rt = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_routing")
@@ -474,14 +474,14 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     if oes_eml and not re.match(dic["original_email_pat"].strip(), oes_eml):
                         continue
                 # check condition 1
-                extra = {"maildata": maildata}
-                if userid:
-                    extra["member"] = api.user.get(userid)
+                extra = {"maildata": maildata, "agent_id": agent_id}
+                if agent_id:
+                    extra["member"] = api.user.get(agent_id)
                 if not _evaluateExpression(self.folder, expression=dic["tal_condition_1"], extra_expr_ctx=extra):
                     continue
                 # assigned_user value
                 if dic["user_value"] == "_transferer_":
-                    assigned_user = userid
+                    assigned_user = agent_id
                 elif dic["user_value"] == "_empty_":
                     assigned_user = None
                 else:
@@ -507,8 +507,8 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                         if person and person.primary_organization and person.primary_organization in active_orgs:
                             tg = person.primary_organization
                 elif dic["tg_value"] == "_hp_":
-                    if assigned_user and assigned_user == userid:
-                        # we get an organization from the userid
+                    if assigned_user and assigned_user == agent_id:
+                        # we get an organization from the agent_id
                         person = get_person_from_userid(assigned_user, unrestricted=True, only_active=True)
                         if person is None:
                             person = get_person_from_userid(assigned_user, unrestricted=True)
@@ -555,9 +555,9 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     if oes_eml and not re.match(dic["original_email_pat"].strip(), oes_eml):
                         continue
                 # check condition 1
-                extra = {"maildata": maildata}
-                if userid:
-                    extra["member"] = api.user.get(userid)
+                extra = {"maildata": maildata, "agent_id": agent_id}
+                if agent_id:
+                    extra["member"] = api.user.get(agent_id)
                 if not _evaluateExpression(self.folder, expression=dic["tal_condition_1"], extra_expr_ctx=extra):
                     continue
                 # state value
