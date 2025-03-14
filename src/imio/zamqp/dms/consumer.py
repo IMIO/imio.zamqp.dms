@@ -551,7 +551,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 document.treating_groups = tg
                 document.assigned_user = None
             elif assigned_user:
-                document.assigned_user = None
+                document.assigned_user = assigned_user
 
             # state set rules from config
             to_state = None
