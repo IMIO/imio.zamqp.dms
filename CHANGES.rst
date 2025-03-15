@@ -9,6 +9,13 @@ Changelog
   [sgeulette]
 - Corrected error when routing table pattern field is None
   [sgeulette]
+- Renamed userid to agent_id in IncomingEmail consumer and passed agent_id to tal conditions
+  [sgeulette]
+- For routing table, kept assigned_user value even treating_groups is None
+  [sgeulette,cadam]
+- For routing table, with _primary_org_ option for treating_groups, defined value too if assigned user is only
+  in one service
+  [sgeulette]
 
 0.21.0 (2025-02-20)
 -------------------
