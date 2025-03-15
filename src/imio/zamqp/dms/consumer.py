@@ -501,12 +501,13 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     continue
                 # treating_groups value
                 if dic["tg_value"] == "_uni_org_only_":
-                    au_groups = get_plone_groups_for_user(user_id=assigned_user)
-                    au_orgs = organizations_with_suffixes(au_groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
-                    au_orgs = [org for org in au_orgs if org in active_orgs]
-                    # get the only one org of the assigned user
-                    if assigned_user and len(au_orgs) == 1:
-                        tg = au_orgs[0]
+                    if assigned_user:
+                        au_groups = get_plone_groups_for_user(user_id=assigned_user)
+                        au_orgs = organizations_with_suffixes(au_groups, IM_EDITOR_SERVICE_FUNCTIONS, group_as_str=True)
+                        au_orgs = [org for org in au_orgs if org in active_orgs]
+                        # get the only one org of the assigned user
+                        if len(au_orgs) == 1:
+                            tg = au_orgs[0]
                 elif dic["tg_value"] == "_primary_org_":
                     if assigned_user:
                         person = get_person_from_userid(assigned_user, unrestricted=True, only_active=True)

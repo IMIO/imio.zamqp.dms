@@ -500,13 +500,10 @@ class TestDmsfile(unittest.TestCase):
         self.assertIsNone(obj.treating_groups)
         self.assertEqual(obj.assigned_user, "agent")
         metadata["Agent"] = [["", "agent1@macommune.be"]]
-        self.pf["agent1"]["agent-evenements"].get_person().primary_organization = None
+        self.pf["agent1"].primary_organization = None
         obj = self.create_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["evenements"].UID())
         self.assertEqual(obj.assigned_user, "agent1")
-        api.group.add_user(
-            groupname="{}_encodeur".format(self.pgof["direction-generale"]["communication"].UID()), username="agent1"
-        )
         api.group.add_user(
             groupname="{}_editeur".format(self.pgof["direction-generale"]["communication"].UID()), username="agent1"
         )
