@@ -14,6 +14,7 @@ from imio.dms.mail.utils import create_period_folder
 from imio.dms.mail.utils import get_dms_config
 from imio.dms.mail.utils import sub_create
 from imio.helpers.cache import get_plone_groups_for_user
+from imio.helpers.content import normalize_name
 from imio.helpers.security import get_user_from_criteria
 from imio.helpers.workflow import do_transitions
 from imio.zamqp.core import base
@@ -344,7 +345,12 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             filename = "email.eml"
         metadata = json.loads(tar.extractfile("metadata.json").read())
         attachments = [
-            {"filename": member.path.decode("utf8").split("/")[-1], "content": tar.extractfile(member).read()}  # noqa
+            {
+                "filename": safe_unicode(
+                    normalize_name(api.portal.get().REQUEST, member.path.decode("utf8").split("/")[-1])
+                ),
+                "content": tar.extractfile(member).read(),
+            }  # noqa
             for member in tar.getmembers()
             if member.path.startswith("/attachments/")  # noqa
         ]
