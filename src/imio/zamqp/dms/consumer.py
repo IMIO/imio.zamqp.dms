@@ -346,9 +346,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
         metadata = json.loads(tar.extractfile("metadata.json").read())
         attachments = [
             {
-                "filename": safe_unicode(
-                    normalize_name(api.portal.get().REQUEST, member.path.decode("utf8").split("/")[-1])
-                ),
+                "filename": safe_unicode(normalize_name(self.site.REQUEST, member.path.decode("utf8").split("/")[-1])),
                 "content": tar.extractfile(member).read(),
             }  # noqa
             for member in tar.getmembers()
