@@ -16,6 +16,8 @@ Changelog
 - For routing table, with _primary_org_ option for treating_groups, defined value too if assigned user is only
   in one service
   [sgeulette]
+- Normalized attachment filenames for incoming emails
+  [cadam]
 
 0.21.0 (2025-02-20)
 -------------------
