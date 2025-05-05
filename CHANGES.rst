@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.21.1 (unreleased)
+0.22.0 (2025-05-05)
 -------------------
 
 - Corrected error when a primary_organization held_position was not found with the given email
