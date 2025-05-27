@@ -5,8 +5,8 @@ Changelog
 0.22.2 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- Updated versions following server.dmsmail.
+  [sgeulette]
 
 0.22.1 (2025-05-27)
 -------------------
