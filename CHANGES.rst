@@ -5,8 +5,8 @@ Changelog
 0.22.1 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- Corrected error by adding `validated` state in `OutgoingGeneratedMail`.
+  [sgeulette]
 
 0.22.0 (2025-05-05)
 -------------------

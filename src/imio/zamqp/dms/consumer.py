@@ -280,11 +280,13 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
             if not params["PC"] and (not self.document.is_email() or self.document.email_status):
                 # close
                 trans = {
-                    "created": ["mark_as_sent", "propose_to_be_signed", "set_to_print", "propose_to_n_plus_1"],
+                    "created": ["mark_as_sent", "propose_to_be_signed", "set_to_print", "set_validated",
+                                "propose_to_n_plus_1"],
                     "scanned": ["mark_as_sent"],
-                    "proposed_to_n_plus_1": ["mark_as_sent", "propose_to_be_signed", "set_to_print"],
+                    "proposed_to_n_plus_1": ["mark_as_sent", "propose_to_be_signed", "set_to_print", "set_validated"],
                     "to_be_signed": ["mark_as_sent"],
-                    "to_print": ["propose_to_be_signed", "mark_as_sent"],
+                    "to_print": ["mark_as_sent", "propose_to_be_signed"],
+                    "validated": ["mark_as_sent", "propose_to_be_signed"],
                 }
                 state = api.content.get_state(self.document)
                 i = 0
