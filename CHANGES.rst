@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.22.1 (unreleased)
+0.22.1 (2025-05-27)
 -------------------
 
 - Corrected error by adding `validated` state in `OutgoingGeneratedMail`.
