@@ -355,7 +355,7 @@ class TestDmsfile(unittest.TestCase):
         metadata["From"] = [["", "agent@macommune.be"]]
         obj = self.create_incoming_email(params, metadata)
         senders = self.pc(email="agent@macommune.be", portal_type=["organization", "person", "held_position"])
-        self.assertEqual(len(senders), 8)
+        self.assertEqual(len(senders), 9)
         self.assertListEqual(
             [br.id for br in senders],
             [
@@ -366,7 +366,8 @@ class TestDmsfile(unittest.TestCase):
                 "agent-comptabilite",
                 "agent-batiments",
                 "agent-voiries",
-                "agent-evenements",
+                "agent-evenements"
+                "agent-college-communal",
             ],
         )
         self.assertEqual(len(obj.sender), 1)

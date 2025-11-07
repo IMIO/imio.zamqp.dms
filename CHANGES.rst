@@ -7,6 +7,8 @@ Changelog
 
 - Updated versions following server.dmsmail.
   [sgeulette]
+- Updated OutgoingGeneratedMail following new signed state
+  [sgeulette]
 
 0.22.1 (2025-05-27)
 -------------------

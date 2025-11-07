@@ -255,7 +255,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                     signed_file.scan_date
                     and self.scan_fields["scan_date"]
                     and self.scan_fields["scan_date"] - signed_file.scan_date
-                ) < datetime.timedelta(0, 72000):
+                ) < datetime.timedelta(0, 72000):  # 20 hours
                     self.update(result[0].getObject(), obj_file)
                 elif not params["PVS"]:
                     # make a new file
@@ -277,20 +277,40 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                     self.scan_fields["scan_date"] and self.scan_fields["scan_date"] or datetime.datetime.now()
                 )
                 self.document.reindexObject(idxs=("in_out_date",))
-            if not params["PC"] and (not self.document.is_email() or self.document.email_status):
-                # close
-                trans = {
-                    "created": ["mark_as_sent", "propose_to_be_signed", "set_to_print", "set_validated",
-                                "propose_to_n_plus_1"],
-                    "scanned": ["mark_as_sent"],
-                    "proposed_to_n_plus_1": ["mark_as_sent", "propose_to_be_signed", "set_to_print", "set_validated"],
-                    "to_be_signed": ["mark_as_sent"],
-                    "to_print": ["mark_as_sent", "propose_to_be_signed"],
-                    "validated": ["mark_as_sent", "propose_to_be_signed"],
-                }
+            if not params["PC"]:
+                if not self.document.is_email() or self.document.email_status:
+                    # we try to set as sent
+                    final_state = "sent"
+                    trans = {
+                        "created": ["mark_as_sent", "mark_as_signed", "propose_to_be_signed", "set_to_print",
+                                    "set_validated", "propose_to_n_plus_1"],
+                        "scanned": ["mark_as_sent"],
+                        "proposed_to_n_plus_1": ["mark_as_sent", "mark_as_signed", "propose_to_be_signed",
+                                                 "set_to_print", "set_validated"],
+                        "to_be_signed": ["mark_as_sent", "mark_as_signed"],
+                        "signed": ["mark_as_sent"],
+                        # TODO : update after to_print wf change
+                        "to_print": ["mark_as_sent", "mark_as_signed", "propose_to_be_signed"],
+                        "validated": ["mark_as_sent", "mark_as_signed", "propose_to_be_signed"],
+                    }
+                else:
+                    # we try to set as signed
+                    final_state = "signed"
+                    trans = {
+                        "created": ["mark_as_signed", "propose_to_be_signed", "set_to_print",
+                                    "set_validated", "propose_to_n_plus_1"],
+                        "scanned": [],
+                        "proposed_to_n_plus_1": ["mark_as_signed", "propose_to_be_signed", "set_to_print",
+                                                 "set_validated"],
+                        "to_be_signed": ["mark_as_signed"],
+                        "signed": [],
+                        # TODO : update after to_print wf change
+                        "to_print": ["mark_as_signed", "propose_to_be_signed"],
+                        "validated": ["mark_as_signed", "propose_to_be_signed"],
+                    }
                 state = api.content.get_state(self.document)
                 i = 0
-                while state != "sent" and i < 10:
+                while state != final_state and i < 10:
                     do_transitions(self.document, trans.get(state, []))
                     state = api.content.get_state(self.document)
                     i += 1
