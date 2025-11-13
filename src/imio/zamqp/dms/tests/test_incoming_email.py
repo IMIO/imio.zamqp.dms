@@ -31,14 +31,16 @@ class TestIncomingEmail(unittest.TestCase):
         self.pgof = self.ctct["plonegroup-organization"]
         self.pf = self.ctct["personnel-folder"]
         self.tdir = tempfile.mkdtemp()
-        self.external_id_suffix = 1  # up to 9999 possible ids
+        self.external_id_suffix = 1  # up to 99 possible ids
         print(self.tdir)
 
-    def create_incoming_email(self, params, metadata):
+    def consume_incoming_email(self, params, metadata):
         from imio.zamqp.dms.consumer import IncomingEmail  # import later to avoid core config error
 
+        params = deepcopy(params)
         # Create fake messsage
-        params["external_id"] = u"01Z9999000000{:04d}".format(self.external_id_suffix)
+        if "external_id" not in params:
+            params["external_id"] = u"01Z9999000001{:02d}".format(self.external_id_suffix)
         self.external_id_suffix += 1
         msg = create_fake_message(CoreIncomingEmail, params)
         ie = IncomingEmail("incoming-mail", "dmsincoming_email", msg)
@@ -51,7 +53,7 @@ class TestIncomingEmail(unittest.TestCase):
 
     def test_IncomingEmail_flow(self):
         params = {
-            "external_id": u"01Z9999000000",
+            # "external_id": u"01Z9999000000",
             "client_id": u"019999",
             "type": u"EMAIL_E",
             "version": 1,
@@ -109,7 +111,7 @@ class TestIncomingEmail(unittest.TestCase):
             api.portal.set_registry_record(self.ss_key, self.ss)
             # unknown agent has forwarded
             params["external_id"] = u"01Z9999000000{:02d}".format(i + 1)
-            obj = self.create_incoming_email(params, metadata)
+            obj = self.consume_incoming_email(params, metadata)
             self.assertEqual(obj.mail_type, u"courrier")
             self.assertEqual(obj.orig_sender_email, u'"Dexter Morgan" <dexter.morgan@mpd.am>')
             self.assertIsNone(obj.sender)
@@ -121,7 +123,7 @@ class TestIncomingEmail(unittest.TestCase):
             metadata2 = deepcopy(metadata)
             metadata2["Agent"] = [["", "agent@MACOMMUNE.be"]]
             metadata2["From"] = [["", "jean.courant@electrabel.eb"]]
-            obj = self.create_incoming_email(params, metadata2)
+            obj = self.consume_incoming_email(params, metadata2)
             self.assertIsNotNone(obj.sender)
             self.assertIsNotNone(obj.treating_groups)
             if tg:
@@ -161,7 +163,7 @@ class TestIncomingEmail(unittest.TestCase):
             api.portal.set_registry_record(self.ss_key, self.ss)
             # unknown agent has forwarded
             params["external_id"] = u"01Z9999000000{:02d}".format(i + 21)
-            obj = self.create_incoming_email(params, metadata)
+            obj = self.consume_incoming_email(params, metadata)
             self.assertIsNone(obj.treating_groups)
             self.assertIsNone(obj.assigned_user)
             self.assertEqual(api.content.get_state(obj), "created", reg_val)
@@ -170,7 +172,7 @@ class TestIncomingEmail(unittest.TestCase):
             metadata2 = deepcopy(metadata)
             metadata2["Agent"] = [["", "agent@MACOMMUNE.be"]]
             metadata2["From"] = [["", "jean.courant@electrabel.eb"]]
-            obj = self.create_incoming_email(params, metadata2)
+            obj = self.consume_incoming_email(params, metadata2)
             self.assertIsNotNone(obj.treating_groups)
             self.assertEqual(obj.assigned_user, u"agent")
             self.assertEqual(api.content.get_state(obj), c_states[i], reg_val)
@@ -217,7 +219,7 @@ class TestIncomingEmail(unittest.TestCase):
             api.portal.set_registry_record(self.ss_key, self.ss)
             # unknown agent has forwarded
             params["external_id"] = u"01Z9999000000{:02d}".format(i + 41)
-            obj = self.create_incoming_email(params, metadata)
+            obj = self.consume_incoming_email(params, metadata)
             self.assertIsNone(obj.treating_groups)
             self.assertIsNone(obj.assigned_user)
             self.assertEqual(api.content.get_state(obj), "created", reg_val)
@@ -226,7 +228,7 @@ class TestIncomingEmail(unittest.TestCase):
             metadata2 = deepcopy(metadata)
             metadata2["Agent"] = [["", "agent@MACOMMUNE.be"]]
             metadata2["From"] = [["", "jean.courant@electrabel.eb"]]
-            obj = self.create_incoming_email(params, metadata2)
+            obj = self.consume_incoming_email(params, metadata2)
             self.assertIsNotNone(obj.treating_groups)
             self.assertEqual(obj.assigned_user, u"agent")
             self.assertEqual(api.content.get_state(obj), c_states[i], reg_val)
@@ -276,44 +278,44 @@ class TestIncomingEmail(unittest.TestCase):
         api.portal.set_registry_record(routing_key, routing)
 
         # check no condition
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.assigned_user, u"agent1")
         self.assertEqual(obj.treating_groups, ev_org)
         # check False condition 1
         routing[0]["tal_condition_1"] = u"python:False"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertIsNone(obj.assigned_user)
         self.assertIsNone(obj.treating_groups)
         # check condition 1 on member id
         routing[0]["tal_condition_1"] = u"python:member.getId() == 'agent'"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.assigned_user, u"agent1")
         self.assertEqual(obj.treating_groups, ev_org)
         # check condition 1 on context
         routing[0]["tal_condition_1"] = u"python:context.getId() == 'incoming-mail'"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.assigned_user, u"agent1")
         self.assertEqual(obj.treating_groups, ev_org)
         # check condition 1 on maidata
         routing[0]["tal_condition_1"] = u"python:maildata['From'][0][1] == 'jean.courant@electrabel.eb'"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.assigned_user, u"agent1")
         self.assertEqual(obj.treating_groups, ev_org)
         # check condition 2 on assigned_user
         routing[0]["tal_condition_2"] = u"python:assigned_user == 'agent1'"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.assigned_user, u"agent1")
         self.assertEqual(obj.treating_groups, ev_org)
         # check False condition 2
         routing[0]["tal_condition_1"] = u""
         routing[0]["tal_condition_2"] = u"python:False"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.assigned_user, u"agent1")
         self.assertIsNone(obj.treating_groups)
 
@@ -347,13 +349,13 @@ class TestIncomingEmail(unittest.TestCase):
         }
 
         # external held_position
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(len(obj.sender), 1)
         self.assertEqual(obj.sender[0].to_object, self.ctct.jeancourant["agent-electrabel"])
 
         # internal held_positions: primary organization related held position will be selected
         metadata["From"] = [["", "agent@macommune.be"]]
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         senders = self.pc(email="agent@macommune.be", portal_type=["organization", "person", "held_position"])
         self.assertEqual(len(senders), 9)
         self.assertListEqual(
@@ -375,7 +377,7 @@ class TestIncomingEmail(unittest.TestCase):
 
         # internal held_positions: no primary organization, only one held position will be selected
         self.pf["agent"].primary_organization = None
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(len(obj.sender), 1)
         self.assertEqual(obj.sender[0].to_object, self.pf["agent"]["agent-secretariat"])
 
@@ -423,22 +425,22 @@ class TestIncomingEmail(unittest.TestCase):
         # check patterns
         routing[0]["transfer_email_pat"] = u".*@space.x"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertIsNone(obj.assigned_user)
         routing[0]["transfer_email_pat"] = u".*@macommune.be"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertIsNotNone(obj.treating_groups)
         self.assertIsNotNone(obj.assigned_user)
         routing[0]["original_email_pat"] = u".*@space.x"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertIsNone(obj.assigned_user)
         routing[0]["original_email_pat"] = u".*@electrabel.eb"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertIsNotNone(obj.treating_groups)
         self.assertIsNotNone(obj.assigned_user)
         # check condition1
@@ -446,12 +448,12 @@ class TestIncomingEmail(unittest.TestCase):
         routing[0]["transfer_email_pat"] = None
         routing[0]["tal_condition_1"] = u"python:False"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertIsNone(obj.assigned_user)
         routing[0]["tal_condition_1"] = u"python:True"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertIsNotNone(obj.treating_groups)
         self.assertIsNotNone(obj.assigned_user)
         routing[0]["tal_condition_1"] = None
@@ -460,25 +462,25 @@ class TestIncomingEmail(unittest.TestCase):
         routing[0]["user_value"] = u"_empty_"
         routing[0]["tg_value"] = self.pgof["direction-generale"]["secretariat"].UID()
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["secretariat"].UID())
         self.assertIsNone(obj.assigned_user)
         # _transferer_
         routing[0]["user_value"] = u"_transferer_"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["secretariat"].UID())
         self.assertEqual(obj.assigned_user, "agent")
         # defined user but not in group
         routing[0]["user_value"] = u"agent1"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertIsNone(obj.assigned_user)
         # defined user but not in group
         routing[0]["tg_value"] = self.pgof["evenements"].UID()
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["evenements"].UID())
         self.assertEqual(obj.assigned_user, "agent1")
 
@@ -486,33 +488,33 @@ class TestIncomingEmail(unittest.TestCase):
         # _uni_org_only_
         routing[0]["tg_value"] = u"_uni_org_only_"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["evenements"].UID())
         self.assertEqual(obj.assigned_user, "agent1")
         # _primary_org_
         routing[0]["user_value"] = u"_transferer_"
         routing[0]["tg_value"] = u"_primary_org_"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["communication"].UID())
         self.assertEqual(obj.assigned_user, "agent")
         self.pf["agent"].primary_organization = None
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertEqual(obj.assigned_user, "agent")
         metadata["Agent"] = [["", "agent1@macommune.be"]]
         self.pf["agent1"].primary_organization = None
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["evenements"].UID())
         self.assertEqual(obj.assigned_user, "agent1")
         api.group.add_user(
             groupname="{}_editeur".format(self.pgof["direction-generale"]["communication"].UID()), username="agent1"
         )
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertEqual(obj.assigned_user, "agent1")
         self.pf["agent1"]["agent-evenements"].get_person().primary_organization = self.pgof["evenements"].UID()
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["evenements"].UID())
         self.assertEqual(obj.assigned_user, "agent1")
         # _hp_
@@ -520,23 +522,23 @@ class TestIncomingEmail(unittest.TestCase):
         self.pf["agent"].primary_organization = None
         routing[0]["tg_value"] = u"_hp_"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertNotEqual(obj.treating_groups, self.pgof["direction-generale"]["communication"].UID())
         self.assertEqual(obj.assigned_user, "agent")
         self.pf["agent"].primary_organization = self.pgof["direction-generale"]["communication"].UID()
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["communication"].UID())
         self.assertEqual(obj.assigned_user, "agent")
         # _empty_
         routing[0]["tg_value"] = u"_empty_"
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.assigned_user, "agent")
         self.assertIsNone(obj.treating_groups)
         # defined group
         routing[0]["tg_value"] = self.pgof["direction-generale"]["grh"].UID()
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["grh"].UID())
         self.assertEqual(obj.assigned_user, "agent")
 
@@ -544,12 +546,12 @@ class TestIncomingEmail(unittest.TestCase):
         routing[0]["tg_value"] = u"_hp_"
         api.portal.set_registry_record(routing_key, routing)
         api.group.add_user(groupname="encodeurs", username="agent")
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["communication"].UID())
         api.group.remove_user(groupname="encodeurs", username="agent")
 
         self.pf["agent"].primary_organization = None
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         hps = api.content.get("/contacts/personnel-folder/agent").get_held_positions()
         orgs = [hp.get_organization().UID() for hp in hps]
         self.assertTrue(obj.treating_groups in orgs)
@@ -568,7 +570,7 @@ class TestIncomingEmail(unittest.TestCase):
             },
         ]
         api.portal.set_registry_record(routing_key, routing)
-        obj = self.create_incoming_email(params, metadata)
+        obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["secretariat"].UID())
         self.assertEqual(obj.assigned_user, "encodeur")
 

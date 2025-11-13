@@ -36,6 +36,7 @@ from zope.schema.interfaces import IVocabularyFactory
 import datetime
 import interfaces
 import json
+import os
 import re
 import tarfile
 
@@ -222,12 +223,13 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
         result = self.site.portal_catalog(
             portal_type=self.file_portal_types,
             scan_id=self.scan_fields.get("scan_id"),
-            signed=False,
+            signed=False,  # TODO attention que cet index va peut-être être retiré
             sort_on="created",
             sort_order="descending",
         )
         if result:
             return result[0].getObject()
+        return None
 
     def create_or_update(self):
         with api.env.adopt_roles(["Manager"]):
@@ -241,37 +243,60 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
             if the_file.scan_user:
                 for param in the_file.scan_user.split("|"):
                     params[param] = True
-            # the_file.scan_user = None  # Don't remove for next generation
             self.document = the_file.aq_parent  # noqa
-            # search for signed file
-            result = self.site.portal_catalog(
-                portal_type="dmsommainfile", scan_id=self.scan_fields.get("scan_id"), signed=True
-            )
-            if result:
-                # Is there a new version because export failing or really a new sending
-                # Check if we are in a time delta of 20 hours: < = export failing else new sending
-                signed_file = result[0].getObject()
-                if (
-                    signed_file.scan_date
-                    and self.scan_fields["scan_date"]
-                    and self.scan_fields["scan_date"] - signed_file.scan_date
-                ) < datetime.timedelta(0, 72000):  # 20 hours
-                    self.update(result[0].getObject(), obj_file)
+            cat_elems = self.document.categorized_elements
+
+            if self.obj.metadata["scanner"] == "_api_esign_":
+                # esign document
+                parts = os.path.splitext(self.obj.filename)[0].split("__")
+                uid = None
+                if len(parts) > 1:
+                    uid = parts[-1]
+                    if "-" in uid:  # imio.esign possible rename
+                        uid = uid.split("-")[0]
+                if uid is None:
+                    log.error("file not found: esign uid not found in filename '{}')".format(self.obj.filename))
+                    return
+                if uid not in cat_elems:
+                    log.error(
+                        "file not found: esign uid '{}' not in mail '{}' categorized_elements)".format(
+                            uid, self.document)
+                    )
+                    return
+                exact_file = self.document[cat_elems[uid]["id"]]  # noqa
+            else:
+                # scanned document
+                # search for signed file TODO must be replaced by cat_elems search when scan_id is there SE-234
+                result = self.site.portal_catalog(
+                    portal_type="dmsommainfile", scan_id=self.scan_fields.get("scan_id"), signed=True
+                )
+                if result:
+                    exact_file = result[0].getObject()
+                    # Is there a new version because export failing or really a new sending
+                    # Check if we are in a time delta of 20 hours: < = export failing else new sending
+                    if (
+                        exact_file.scan_date
+                        and self.scan_fields["scan_date"]
+                        and self.scan_fields["scan_date"] - exact_file.scan_date
+                    ) < datetime.timedelta(0, 72000):  # 20 hours
+                        self.update(result[0].getObject(), obj_file)
+                    elif not params["PVS"]:
+                        # make a new file
+                        self.create(obj_file)
+                    else:
+                        log.error(
+                            "file not considered: existing signed but PVS (scan_id: {0})".format(
+                                self.scan_fields.get("scan_id")
+                            )
+                        )
                 elif not params["PVS"]:
                     # make a new file
                     self.create(obj_file)
                 else:
-                    log.error(
-                        "file not considered: existing signed but PVS (scan_id: {0})".format(
-                            self.scan_fields.get("scan_id")
-                        )
-                    )
-            elif not params["PVS"]:
-                # make a new file
-                self.create(obj_file)
-            else:
-                # register scan date on original model
-                the_file.scan_date = self.scan_fields["scan_date"]
+                    # register scan date on original model
+                    the_file.scan_date = self.scan_fields["scan_date"]
+
+            # the_file.scan_user = None  # Don't remove for next generation
             if not params["PD"]:
                 self.document.outgoing_date = (
                     self.scan_fields["scan_date"] and self.scan_fields["scan_date"] or datetime.datetime.now()
