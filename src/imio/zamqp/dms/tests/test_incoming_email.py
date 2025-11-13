@@ -17,7 +17,7 @@ import tempfile
 import unittest
 
 
-class TestDmsfile(unittest.TestCase):
+class TestIncomingEmail(unittest.TestCase):
 
     layer = DMSMAIL_INTEGRATION_TESTING
 
@@ -366,7 +366,7 @@ class TestDmsfile(unittest.TestCase):
                 "agent-comptabilite",
                 "agent-batiments",
                 "agent-voiries",
-                "agent-evenements"
+                "agent-evenements",
                 "agent-college-communal",
             ],
         )
