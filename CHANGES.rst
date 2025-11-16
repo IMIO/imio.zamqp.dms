@@ -9,6 +9,8 @@ Changelog
   [sgeulette]
 - Updated OutgoingGeneratedMail following new signed state
   [sgeulette]
+- Updated OutgoingGeneratedMail for esigned files
+  [sgeulette]
 
 0.22.1 (2025-05-27)
 -------------------

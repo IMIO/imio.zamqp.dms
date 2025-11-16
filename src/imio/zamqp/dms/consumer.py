@@ -231,6 +231,18 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
             return result[0].getObject()
         return None
 
+    """
+    self.obj.filename
+    self.obj.metadata
+    {'scan_id': u'012999600000006', 'file_title': u'Publipostage S0009 Reponse 9.pdf', 'scanner': None,
+     'mail_type': None, 'scan_date': datetime.datetime(2025, 8, 29, 13, 14, 21), 'pages_number': None,
+     'id': u'012999600000006', 'scan_user': None}
+    self.obj.file_metadata
+    {u'creator': u'scanner', u'scan_hour': u'13:14:21', u'scan_date': u'2025-08-29', u'update': True,
+     u'filemd5': u'd77f870f1f765fb4d8bfb9da033ac734', u'filesize': 99829,
+     u'filename': u'Publipostage S0009 Reponse 9.pdf'}
+    """
+
     def create_or_update(self):
         with api.env.adopt_roles(["Manager"]):
             obj_file = self.obj_file  # namedblobfile object
@@ -246,24 +258,25 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
             self.document = the_file.aq_parent  # noqa
             cat_elems = self.document.categorized_elements
 
-            if self.obj.metadata["scanner"] == "_api_esign_":
+            if self.obj.metadata["scanner"] == u"_api_esign_":
                 # esign document
-                parts = os.path.splitext(self.obj.filename)[0].split("__")
+                parts = os.path.splitext(self.obj.filename)[0].split(u"__")
                 uid = None
                 if len(parts) > 1:
                     uid = parts[-1]
-                    if "-" in uid:  # imio.esign possible rename
-                        uid = uid.split("-")[0]
+                    if u"-" in uid:  # imio.esign possible rename
+                        uid = uid.split(u"-")[0]
                 if uid is None:
-                    log.error("file not found: esign uid not found in filename '{}')".format(self.obj.filename))
+                    log.error(u"file not found: esign uid not found in filename '{}')".format(self.obj.filename))
                     return
                 if uid not in cat_elems:
                     log.error(
-                        "file not found: esign uid '{}' not in mail '{}' categorized_elements)".format(
+                        u"file not found: esign uid '{}' not in mail '{}' categorized_elements)".format(
                             uid, self.document)
                     )
                     return
                 exact_file = self.document[cat_elems[uid]["id"]]  # noqa
+                self.update_file(exact_file, obj_file, cat_elems)
             else:
                 # scanned document
                 # search for signed file TODO must be replaced by cat_elems search when scan_id is there SE-234
@@ -303,7 +316,37 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 )
                 self.document.reindexObject(idxs=("in_out_date",))
             if not params["PC"]:
-                if not self.document.is_email() or self.document.email_status:
+                if self.obj.metadata["scanner"] == u"_api_esign_":
+                    if True:  # TODO add a test to see if all files of the document are signed
+                        # we try to set as signed
+                        final_state = "signed"
+                        trans = {
+                            "created": ["mark_as_signed", "propose_to_be_signed", "set_to_print",
+                                        "set_validated", "propose_to_n_plus_1"],
+                            "scanned": [],
+                            "proposed_to_n_plus_1": ["mark_as_signed", "propose_to_be_signed", "set_to_print",
+                                                     "set_validated"],
+                            "to_be_signed": ["mark_as_signed"],
+                            "signed": [],
+                            # TODO : update after to_print wf change
+                            "to_print": ["mark_as_signed", "propose_to_be_signed"],
+                            "validated": ["mark_as_signed", "propose_to_be_signed"],
+                        }
+                elif self.document.is_email() and not self.document.email_status:
+                    final_state = "signed"
+                    trans = {
+                        "created": ["mark_as_signed", "propose_to_be_signed", "set_to_print",
+                                    "set_validated", "propose_to_n_plus_1"],
+                        "scanned": [],
+                        "proposed_to_n_plus_1": ["mark_as_signed", "propose_to_be_signed", "set_to_print",
+                                                 "set_validated"],
+                        "to_be_signed": ["mark_as_signed"],
+                        "signed": [],
+                        # TODO : update after to_print wf change
+                        "to_print": ["mark_as_signed", "propose_to_be_signed"],
+                        "validated": ["mark_as_signed", "propose_to_be_signed"],
+                    }
+                else:
                     # we try to set as sent
                     final_state = "sent"
                     trans = {
@@ -317,21 +360,6 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                         # TODO : update after to_print wf change
                         "to_print": ["mark_as_sent", "mark_as_signed", "propose_to_be_signed"],
                         "validated": ["mark_as_sent", "mark_as_signed", "propose_to_be_signed"],
-                    }
-                else:
-                    # we try to set as signed
-                    final_state = "signed"
-                    trans = {
-                        "created": ["mark_as_signed", "propose_to_be_signed", "set_to_print",
-                                    "set_validated", "propose_to_n_plus_1"],
-                        "scanned": [],
-                        "proposed_to_n_plus_1": ["mark_as_signed", "propose_to_be_signed", "set_to_print",
-                                                 "set_validated"],
-                        "to_be_signed": ["mark_as_signed"],
-                        "signed": [],
-                        # TODO : update after to_print wf change
-                        "to_print": ["mark_as_signed", "propose_to_be_signed"],
-                        "validated": ["mark_as_signed", "propose_to_be_signed"],
                     }
                 state = api.content.get_state(self.document)
                 i = 0
@@ -364,6 +392,13 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
         document.reindexObject(idxs=("SearchableText",))
         log.info("file has been updated (scan_id: {0})".format(new_file.scan_id))
 
+    def update_file(self, the_file, obj_file, cat_elems):
+        # replace file content
+        the_file.file = obj_file
+        the_file.signed = True
+        cat_elems[the_file.UID()]["signed"] = True
+        self.document._p_changed = True
+        log.info("file content has been updated (id: {0})".format(the_file.id))
 
 # INCOMING EMAILS #
 
