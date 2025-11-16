@@ -143,6 +143,7 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
         self.assertEqual(len(self.pc(portal_type="dmsoutgoingmail")), 9)
         self.assertEqual(len(self.pc(portal_type="dmsommainfile")), 9)
         self.assertEqual(self.rep8.objectIds(), ["1"])
+        self.assertTrue(self.rep8["1"].to_sign)
         self.assertEqual(api.content.get_state(self.rep8), "created")
         # FIRST CASE: 1 signer, 1 approver, 0 seal
         dirg_hp = self.pf["dirg"]["directeur-general"].UID()
@@ -187,6 +188,29 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
         self.rep9.esign = False
         self.rep9.seal = True
         modified(self.rep9)
+        self.assertEqual(api.content.get_state(self.rep9), "created")
+        a_a = get_approval_annot(self.rep9)
+        self.assertEqual(len(a_a["files"]), 0)
+        self.assertEqual(len(a_a["users"]), 0)
+        self.assertIsNone(a_a["approval"])
+        self.assertTrue(self.rep9["1"].to_sign)
+        f_uid = self.rep9["1"].UID()
+        # propose to be signed directly
+        api.content.transition(self.rep9, "propose_to_be_signed")
+        self.assertEqual(len(a_a["files"]), 1)
+        self.assertEqual(len(a_a["files"][f_uid]["nb"]), 0)
+        self.assertIsNone(a_a["approval"])
+        self.assertEqual(a_a["session_id"], 1)
+        # pdf file has been generated
+        self.assertEqual(self.rep9.objectIds(), ["1", "reponse-salle.pdf"])
+        nf_uid = self.rep9["reponse-salle.pdf"].UID()
+        params["file_metadata"]["filename"] = u"reponse-salle.pdf__{}.pdf".format(nf_uid)
+        params["external_id"] = u"012999900000009"
+        old_file_size = self.rep9["reponse-salle.pdf"].file.size
+        self.consume_ogm(params)
+        self.assertEqual(self.rep9["reponse-salle.pdf"].signed, True)
+        self.assertNotEqual(self.rep9["reponse-salle.pdf"].file.size, old_file_size)
+        self.assertEqual(api.content.get_state(self.rep9), "signed")
 
     def tearDown(self):
         # print("removing:" + self.tdir)
