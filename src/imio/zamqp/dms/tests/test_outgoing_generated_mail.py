@@ -58,7 +58,7 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
     def test_scanned_OGM(self):
         params = {
             "client_id": u"059999",
-            "external_id": u"052999900000010",  # non existing
+            "external_id": u"012999900000010",  # non existing
             "type": u"COUR_S_GEN",
             "version": 1,
             "date": datetime.datetime(2021, 5, 18),
@@ -70,7 +70,7 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
                 u"scan_hour": u"13:16:29",
                 u"scan_date": u"2021-05-18",
                 u"filemd5": u"",
-                u"filename": u"052999900000008.pdf",
+                u"filename": u"012999900000008.pdf",
                 u"pc": u"pc-scan01",
                 u"user": u"testuser",
                 u"filesize": 7910,
@@ -85,9 +85,9 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
         self.assertIsNone(self.rep8.outgoing_date)
         self.assertEqual(api.content.get_state(self.rep8), "created")
         # existing file, not email, creation
-        self.assertEqual(self.rep8["1"].scan_id, "052999900000008")
-        params["external_id"] = u"052999900000008"  # rep8 file 1
-        file_id = "052999900000008.pdf"
+        self.assertEqual(self.rep8["1"].scan_id, "012999900000008")
+        params["external_id"] = u"012999900000008"  # rep8 file 1
+        file_id = "012999900000008.pdf"
         self.consume_ogm(params)
         self.assertEqual(self.rep8.objectIds(), ["1", file_id])
         self.assertEqual(self.rep8.outgoing_date.strftime("%Y-%m-%d %H:%M"), "2021-05-18 13:16")
@@ -108,9 +108,9 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
         self.assertTrue(self.rep8[file_id].signed)
         # other existing file, email, creation
         self.rep9.send_modes = ["email"]
-        self.assertEqual(self.rep9["1"].scan_id, "052999900000009")
-        params["external_id"] = u"052999900000009"  # rep9 file 1
-        file_id = "052999900000009.pdf"
+        self.assertEqual(self.rep9["1"].scan_id, "012999900000009")
+        params["external_id"] = u"012999900000009"  # rep9 file 1
+        file_id = "012999900000009.pdf"
         params["file_metadata"]["filename"] = safe_unicode(file_id)
         params["file_metadata"]["scan_hour"] = u"13:16:29"
         self.consume_ogm(params)
@@ -123,7 +123,7 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
     def test_esigned_OGM(self):
         params = {
             "client_id": u"059999",
-            "external_id": u"052999900000008",
+            "external_id": u"012999900000008",
             "type": u"COUR_S_GEN",
             "version": 1,
             "date": datetime.datetime(2025, 11, 14),
@@ -144,7 +144,7 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
         self.assertEqual(len(self.pc(portal_type="dmsommainfile")), 9)
         self.assertEqual(self.rep8.objectIds(), ["1"])
         self.assertEqual(api.content.get_state(self.rep8), "created")
-        # FIRST CASE: 1 signer, 1 approver, no seal
+        # FIRST CASE: 1 signer, 1 approver, 0 seal
         dirg_hp = self.pf["dirg"]["directeur-general"].UID()
         self.rep8.signers = [{"signer": dirg_hp, 'approvings': [u"_themself_"], 'number': 1, 'editor': True}]
         self.rep8.esign = True
@@ -158,7 +158,7 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
         # add file to approval
         add_file_to_approval(a_a, f_uid)
         self.assertEqual(len(a_a["files"]), 1)
-        self.assertEqual(a_a["files"][f_uid][1]["status"], "w")
+        self.assertEqual(a_a["files"][f_uid]["nb"][1]["status"], "w")
         self.assertIsNone(a_a["approval"])
         self.assertIsNone(a_a["session_id"])
         api.content.transition(self.rep8, "propose_to_approve")
@@ -166,11 +166,13 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
         # dirg approves
         ret, _ = approve_file(a_a, self.rep8, self.rep8["1"], "dirg", transition="propose_to_be_signed")
         self.assertTrue(ret)
-        self.assertEqual(a_a["files"][f_uid][1]["status"], "a")
-        self.assertEqual(a_a["files"][f_uid][1]["approved_by"], "dirg")
+        self.assertEqual(a_a["files"][f_uid]["nb"][1]["status"], "a")
+        self.assertEqual(a_a["files"][f_uid]["nb"][1]["approved_by"], "dirg")
         self.assertEqual(a_a["approval"], 99)  # approval is finished
         self.assertEqual(api.content.get_state(self.rep8), "to_approve")  # still in to_approve before signing
         self.assertEqual(a_a["session_id"], 0)
+        # we simulate the session sent where the state will be changed
+        api.content.transition(self.rep8, "propose_to_be_signed")
         # pdf file has been generated
         self.assertEqual(self.rep8.objectIds(), ["1", "reponse-candidature-ouvrier-communal.pdf"])
         nf_uid = self.rep8["reponse-candidature-ouvrier-communal.pdf"].UID()
@@ -179,8 +181,12 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
         self.consume_ogm(params)
         self.assertEqual(self.rep8["reponse-candidature-ouvrier-communal.pdf"].signed, True)
         self.assertNotEqual(self.rep8["reponse-candidature-ouvrier-communal.pdf"].file.size, old_file_size)
-
-        # self.assertEqual(api.content.get_state(self.rep8), "created")
+        self.assertEqual(api.content.get_state(self.rep8), "signed")
+        # SECOND CASE: 0 signer, 0 approver, 1 seal
+        self.rep9.signers = [{"signer": u"_empty_", 'approvings': [u"_empty_"], 'number': 1, 'editor': True}]
+        self.rep9.esign = False
+        self.rep9.seal = True
+        modified(self.rep9)
 
     def tearDown(self):
         # print("removing:" + self.tdir)

@@ -11,6 +11,7 @@ from collective.zamqp.consumer import Consumer
 from imio.dms.mail import IM_EDITOR_SERVICE_FUNCTIONS
 from imio.dms.mail.interfaces import IPersonnelContact
 from imio.dms.mail.utils import create_period_folder
+from imio.dms.mail.utils import get_approval_annot
 from imio.dms.mail.utils import get_dms_config
 from imio.dms.mail.utils import sub_create
 from imio.helpers.cache import get_plone_groups_for_user
@@ -316,36 +317,29 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 )
                 self.document.reindexObject(idxs=("in_out_date",))
             if not params["PC"]:
+                signed_transitions = {
+                    "created": ["mark_as_signed", "propose_to_be_signed", "set_to_print",
+                                "set_validated", "propose_to_n_plus_1"],
+                    "scanned": [],
+                    "proposed_to_n_plus_1": ["mark_as_signed", "propose_to_be_signed", "set_to_print",
+                                             "set_validated"],
+                    "to_be_signed": ["mark_as_signed"],
+                    "signed": [],
+                    # TODO : update after to_print wf change
+                    "to_print": ["mark_as_signed", "propose_to_be_signed"],
+                    "validated": ["mark_as_signed", "propose_to_be_signed"],
+                }
                 if self.obj.metadata["scanner"] == u"_api_esign_":
-                    if True:  # TODO add a test to see if all files of the document are signed
+                    # get all pdf files
+                    approval = get_approval_annot(self.document)
+                    f_uids = [approval["files"][f_uid]["pdf"] for f_uid in approval["files"]]
+                    if all([cat_elems.get(f_uid) and cat_elems[f_uid]["signed"] for f_uid in f_uids]):
                         # we try to set as signed
                         final_state = "signed"
-                        trans = {
-                            "created": ["mark_as_signed", "propose_to_be_signed", "set_to_print",
-                                        "set_validated", "propose_to_n_plus_1"],
-                            "scanned": [],
-                            "proposed_to_n_plus_1": ["mark_as_signed", "propose_to_be_signed", "set_to_print",
-                                                     "set_validated"],
-                            "to_be_signed": ["mark_as_signed"],
-                            "signed": [],
-                            # TODO : update after to_print wf change
-                            "to_print": ["mark_as_signed", "propose_to_be_signed"],
-                            "validated": ["mark_as_signed", "propose_to_be_signed"],
-                        }
+                        trans = signed_transitions
                 elif self.document.is_email() and not self.document.email_status:
                     final_state = "signed"
-                    trans = {
-                        "created": ["mark_as_signed", "propose_to_be_signed", "set_to_print",
-                                    "set_validated", "propose_to_n_plus_1"],
-                        "scanned": [],
-                        "proposed_to_n_plus_1": ["mark_as_signed", "propose_to_be_signed", "set_to_print",
-                                                 "set_validated"],
-                        "to_be_signed": ["mark_as_signed"],
-                        "signed": [],
-                        # TODO : update after to_print wf change
-                        "to_print": ["mark_as_signed", "propose_to_be_signed"],
-                        "validated": ["mark_as_signed", "propose_to_be_signed"],
-                    }
+                    trans = signed_transitions
                 else:
                     # we try to set as sent
                     final_state = "sent"
