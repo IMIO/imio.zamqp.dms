@@ -4,6 +4,7 @@ from imio.dms.mail.testing import DMSMAIL_INTEGRATION_TESTING
 from imio.dms.mail.utils import add_file_to_approval
 from imio.dms.mail.utils import approve_file
 from imio.dms.mail.utils import get_approval_annot
+from imio.esign.utils import get_session_annotation
 from imio.helpers.content import get_object
 from imio.zamqp.dms.testing import create_fake_message
 from imio.zamqp.dms.testing import store_fake_content
@@ -145,6 +146,8 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
         self.assertEqual(self.rep8.objectIds(), ["1"])
         self.assertTrue(self.rep8["1"].to_sign)
         self.assertEqual(api.content.get_state(self.rep8), "created")
+        sessions = get_session_annotation(self.portal)
+        self.assertEqual(sessions, {'sessions': {}, 'numbering': 0, 'uids': {}, 'c_uids': {}})
         # FIRST CASE: 1 signer, 1 approver, 0 seal
         dirg_hp = self.pf["dirg"]["directeur-general"].UID()
         self.rep8.signers = [{"signer": dirg_hp, 'approvings': [u"_themself_"], 'number': 1, 'editor': True}]
@@ -171,18 +174,26 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
         self.assertEqual(a_a["files"][f_uid]["nb"][1]["approved_by"], "dirg")
         self.assertEqual(a_a["approval"], 99)  # approval is finished
         self.assertEqual(api.content.get_state(self.rep8), "to_approve")  # still in to_approve before signing
-        self.assertEqual(a_a["session_id"], 0)
-        # we simulate the session sent where the state will be changed
-        api.content.transition(self.rep8, "propose_to_be_signed")
         # pdf file has been generated
         self.assertEqual(self.rep8.objectIds(), ["1", "reponse-candidature-ouvrier-communal.pdf"])
         nf_uid = self.rep8["reponse-candidature-ouvrier-communal.pdf"].UID()
-        params["file_metadata"]["filename"] = u"reponse-candidature-ouvrier-communal__{}.pdf".format(nf_uid)
+        self.assertEqual(a_a["session_id"], 0)
+        self.assertIn(nf_uid, sessions['uids'])
+        self.assertEqual(len(sessions["sessions"]), 1)
+        self.assertEqual(sessions["sessions"][0]["state"], "draft")  # but in reality, it will be updated
+        self.assertEqual(len(sessions["sessions"][0]["files"]), 1)
+        self.assertEqual(sessions["sessions"][0]["files"][0]["status"], "")
+        self.assertTrue(sessions["sessions"][0]["files"][0]["filename"].endswith(u"__{}.pdf".format(nf_uid)))
+        params["file_metadata"]["filename"] = sessions["sessions"][0]["files"][0]["filename"]
         old_file_size = self.rep8["reponse-candidature-ouvrier-communal.pdf"].file.size
+        # we simulate the session sent where the state will be changed
+        api.content.transition(self.rep8, "propose_to_be_signed")
         self.consume_ogm(params)
         self.assertEqual(self.rep8["reponse-candidature-ouvrier-communal.pdf"].signed, True)
         self.assertNotEqual(self.rep8["reponse-candidature-ouvrier-communal.pdf"].file.size, old_file_size)
         self.assertEqual(api.content.get_state(self.rep8), "signed")
+        self.assertEqual(sessions["sessions"][0]["files"][0]["status"], "received")
+        self.assertEqual(sessions["sessions"][0]["state"], "finalized")
         # SECOND CASE: 0 signer, 0 approver, 1 seal
         self.rep9.signers = [{"signer": u"_empty_", 'approvings': [u"_empty_"], 'number': 1, 'editor': True}]
         self.rep9.esign = False
@@ -195,7 +206,7 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
         self.assertIsNone(a_a["approval"])
         self.assertTrue(self.rep9["1"].to_sign)
         f_uid = self.rep9["1"].UID()
-        # propose to be signed directly
+        # propose to be signed, so the session is created and sent
         api.content.transition(self.rep9, "propose_to_be_signed")
         self.assertEqual(len(a_a["files"]), 1)
         self.assertEqual(len(a_a["files"][f_uid]["nb"]), 0)
@@ -204,13 +215,21 @@ class TestOutgoingGeneratedMail(unittest.TestCase):
         # pdf file has been generated
         self.assertEqual(self.rep9.objectIds(), ["1", "reponse-salle.pdf"])
         nf_uid = self.rep9["reponse-salle.pdf"].UID()
-        params["file_metadata"]["filename"] = u"reponse-salle.pdf__{}.pdf".format(nf_uid)
+        self.assertIn(nf_uid, sessions['uids'])
+        self.assertEqual(len(sessions["sessions"]), 2)
+        self.assertEqual(sessions["sessions"][1]["state"], "draft")  # but in reality, it will be updated
+        self.assertEqual(len(sessions["sessions"][1]["files"]), 1)
+        self.assertEqual(sessions["sessions"][1]["files"][0]["status"], "")
+        self.assertTrue(sessions["sessions"][1]["files"][0]["filename"].endswith(u"__{}.pdf".format(nf_uid)))
+        params["file_metadata"]["filename"] = sessions["sessions"][1]["files"][0]["filename"]
         params["external_id"] = u"012999900000009"
         old_file_size = self.rep9["reponse-salle.pdf"].file.size
         self.consume_ogm(params)
         self.assertEqual(self.rep9["reponse-salle.pdf"].signed, True)
         self.assertNotEqual(self.rep9["reponse-salle.pdf"].file.size, old_file_size)
         self.assertEqual(api.content.get_state(self.rep9), "signed")
+        self.assertEqual(sessions["sessions"][1]["files"][0]["status"], "received")
+        self.assertEqual(sessions["sessions"][1]["state"], "finalized")
 
     def tearDown(self):
         # print("removing:" + self.tdir)

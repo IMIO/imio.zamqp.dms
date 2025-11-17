@@ -14,6 +14,7 @@ from imio.dms.mail.utils import create_period_folder
 from imio.dms.mail.utils import get_approval_annot
 from imio.dms.mail.utils import get_dms_config
 from imio.dms.mail.utils import sub_create
+from imio.esign.utils import get_session_annotation
 from imio.helpers.cache import get_plone_groups_for_user
 from imio.helpers.content import normalize_name
 from imio.helpers.security import get_user_from_criteria
@@ -278,6 +279,22 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                     return
                 exact_file = self.document[cat_elems[uid]["id"]]  # noqa
                 self.update_file(exact_file, obj_file, cat_elems)
+                # update session
+                sessions = get_session_annotation()
+                if uid not in sessions["uids"]:
+                    log.error(u"file not found in sessions: esign uid '{}'".format(uid))
+                else:
+                    session_id = sessions["uids"][uid]
+                    files = sessions["sessions"][session_id]["files"]
+                    file_info = [fdic for fdic in files if fdic["uid"] == uid]
+                    if not file_info:
+                        log.error(
+                            u"file info not found in sessions: esign uid '{}' in session '{}'".format(uid, session_id)
+                        )
+                    else:
+                        file_info[0]["status"] = "received"
+                    if all([fdic["status"] == "received" for fdic in files]):
+                        sessions["sessions"][session_id]["state"] = "finalized"
             else:
                 # scanned document
                 # search for signed file TODO must be replaced by cat_elems search when scan_id is there SE-234
