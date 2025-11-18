@@ -346,6 +346,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                     "to_print": ["mark_as_signed", "propose_to_be_signed"],
                     "validated": ["mark_as_signed", "propose_to_be_signed"],
                 }
+                final_state = None
                 if self.obj.metadata["scanner"] == u"_api_esign_":
                     # get all pdf files
                     approval = get_approval_annot(self.document)
@@ -372,12 +373,13 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                         "to_print": ["mark_as_sent", "mark_as_signed", "propose_to_be_signed"],
                         "validated": ["mark_as_sent", "mark_as_signed", "propose_to_be_signed"],
                     }
-                state = api.content.get_state(self.document)
-                i = 0
-                while state != final_state and i < 10:
-                    do_transitions(self.document, trans.get(state, []))
+                if final_state:
                     state = api.content.get_state(self.document)
-                    i += 1
+                    i = 0
+                    while state != final_state and i < 10:
+                        do_transitions(self.document, trans.get(state, []))
+                        state = api.content.get_state(self.document)
+                        i += 1
 
     def _upload_file_extra_data(self):
         """ """
