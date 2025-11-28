@@ -9,9 +9,9 @@ from collective.dms.batchimport.utils import log
 from collective.dms.mailcontent.dmsmail import internalReferenceIncomingMailDefaultValue
 from collective.zamqp.consumer import Consumer
 from imio.dms.mail import IM_EDITOR_SERVICE_FUNCTIONS
+from imio.dms.mail.adapters import OMApprovalAdapter
 from imio.dms.mail.interfaces import IPersonnelContact
 from imio.dms.mail.utils import create_period_folder
-from imio.dms.mail.utils import get_approval_annot
 from imio.dms.mail.utils import get_dms_config
 from imio.dms.mail.utils import sub_create
 from imio.esign.utils import get_session_annotation
@@ -349,8 +349,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 final_state = None
                 if self.obj.metadata["scanner"] == u"_api_esign_":
                     # get all pdf files
-                    approval = get_approval_annot(self.document)
-                    f_uids = [approval["files"][f_uid]["pdf"] for f_uid in approval["files"]]
+                    f_uids = OMApprovalAdapter(self.document).pdf_files_uids
                     if all([cat_elems.get(f_uid) and cat_elems[f_uid]["signed"] for f_uid in f_uids]):
                         # we try to set as signed
                         final_state = "signed"
