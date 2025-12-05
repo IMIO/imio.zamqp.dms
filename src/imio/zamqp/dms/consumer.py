@@ -171,8 +171,6 @@ class OutgoingMail(DMSMainFile, CommonMethods):
             owner=self.obj.creator,
             metadata=self.metadata,
         )
-        # MANAGE signed: to True ?
-        self.scan_fields["signed"] = True
         self.set_scan_attr(main_file)
         main_file.reindexObject(idxs=("SearchableText",))
         document.reindexObject(idxs=("SearchableText",))
@@ -191,8 +189,6 @@ class OutgoingMail(DMSMainFile, CommonMethods):
         for key, value in self.metadata.items():
             if base_hasattr(document, key) and value:
                 setattr(document, key, value)
-        # MANAGE signed: to True ?
-        self.scan_fields["signed"] = True
         new_file = self._upload_file(document, obj_file)
         document.reindexObject(idxs=("SearchableText",))
         log.info("file has been updated (scan_id: {0})".format(new_file.scan_id))
@@ -225,7 +221,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
         result = self.site.portal_catalog(
             portal_type=self.file_portal_types,
             scan_id=self.scan_fields.get("scan_id"),
-            signed=False,  # TODO attention que cet index va peut-être être retiré
+            signed=False,  # FIXME attention que cet index va peut-être être retiré
             sort_on="created",
             sort_order="descending",
         )
@@ -298,6 +294,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
             else:
                 # scanned document
                 # search for signed file TODO must be replaced by cat_elems search when scan_id is there SE-234
+                # FIXME attention que cet index va peut-être être retiré
                 result = self.site.portal_catalog(
                     portal_type="dmsommainfile", scan_id=self.scan_fields.get("scan_id"), signed=True
                 )
@@ -388,7 +385,6 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
     def create(self, obj_file):
         # create a new dmsfile
         document = self.document
-        self.scan_fields["signed"] = True
         main_file = self._upload_file(document, obj_file)
         document.reindexObject(idxs=("SearchableText",))
         log.info("file has been created (scan_id: {0})".format(main_file.scan_id))
@@ -400,7 +396,6 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
             return
         document = the_file.aq_parent
         api.content.delete(obj=the_file)
-        self.scan_fields["signed"] = True
         new_file = self._upload_file(document, obj_file)
         document.reindexObject(idxs=("SearchableText",))
         log.info("file has been updated (scan_id: {0})".format(new_file.scan_id))

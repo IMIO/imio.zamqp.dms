@@ -11,6 +11,8 @@ Changelog
   [sgeulette]
 - Updated OutgoingGeneratedMail for esigned files
   [sgeulette]
+- Removed 'to_sign' and 'signed' fields from the scan behavior.
+  [chris-adam]
 
 0.22.1 (2025-05-27)
 -------------------
