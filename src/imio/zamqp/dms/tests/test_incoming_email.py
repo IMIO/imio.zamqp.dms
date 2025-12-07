@@ -7,6 +7,7 @@ from imio.dms.mail.utils import group_has_user
 from imio.dms.mail.wfadaptations import IMServiceValidation
 from imio.zamqp.dms.testing import create_fake_message
 from imio.zamqp.dms.testing import store_fake_content
+from imio.zamqp.dms.tests.base_test_class import BaseTestClass
 from plone import api
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
@@ -14,10 +15,9 @@ from plone.app.testing import TEST_USER_ID
 import datetime
 import shutil
 import tempfile
-import unittest
 
 
-class TestIncomingEmail(unittest.TestCase):
+class TestIncomingEmail(BaseTestClass):
 
     layer = DMSMAIL_INTEGRATION_TESTING
 
@@ -118,6 +118,7 @@ class TestIncomingEmail(unittest.TestCase):
             self.assertIsNone(obj.treating_groups)
             self.assertIsNone(obj.assigned_user)
             self.assertEqual(api.content.get_state(obj), "created", reg_val)
+            self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
             # known agent has forwarded
             params["external_id"] = u"01Z9999000000{:02d}".format(i + 8)
             metadata2 = deepcopy(metadata)
@@ -131,6 +132,7 @@ class TestIncomingEmail(unittest.TestCase):
             tg = obj.treating_groups
             self.assertEqual(obj.assigned_user, u"agent")
             self.assertEqual(api.content.get_state(obj), c_states[i], reg_val)
+            self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
 
         # with n_plus_1 level
         self.portal.portal_setup.runImportStepFromProfile(
@@ -167,6 +169,7 @@ class TestIncomingEmail(unittest.TestCase):
             self.assertIsNone(obj.treating_groups)
             self.assertIsNone(obj.assigned_user)
             self.assertEqual(api.content.get_state(obj), "created", reg_val)
+            self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
             # known agent has forwarded
             params["external_id"] = u"01Z9999000000{:02d}".format(i + 28)
             metadata2 = deepcopy(metadata)
@@ -176,6 +179,7 @@ class TestIncomingEmail(unittest.TestCase):
             self.assertIsNotNone(obj.treating_groups)
             self.assertEqual(obj.assigned_user, u"agent")
             self.assertEqual(api.content.get_state(obj), c_states[i], reg_val)
+            self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
 
         # with n_plus_2 level
         n_plus_2_params = {
@@ -223,6 +227,7 @@ class TestIncomingEmail(unittest.TestCase):
             self.assertIsNone(obj.treating_groups)
             self.assertIsNone(obj.assigned_user)
             self.assertEqual(api.content.get_state(obj), "created", reg_val)
+            self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
             # known agent has forwarded
             params["external_id"] = u"01Z9999000000{:02d}".format(i + 48)
             metadata2 = deepcopy(metadata)
@@ -232,6 +237,7 @@ class TestIncomingEmail(unittest.TestCase):
             self.assertIsNotNone(obj.treating_groups)
             self.assertEqual(obj.assigned_user, u"agent")
             self.assertEqual(api.content.get_state(obj), c_states[i], reg_val)
+            self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
 
     def test_IncomingEmail_condition(self):
         params = {
@@ -281,36 +287,42 @@ class TestIncomingEmail(unittest.TestCase):
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.assigned_user, u"agent1")
         self.assertEqual(obj.treating_groups, ev_org)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         # check False condition 1
         routing[0]["tal_condition_1"] = u"python:False"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.consume_incoming_email(params, metadata)
         self.assertIsNone(obj.assigned_user)
         self.assertIsNone(obj.treating_groups)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         # check condition 1 on member id
         routing[0]["tal_condition_1"] = u"python:member.getId() == 'agent'"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.assigned_user, u"agent1")
         self.assertEqual(obj.treating_groups, ev_org)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         # check condition 1 on context
         routing[0]["tal_condition_1"] = u"python:context.getId() == 'incoming-mail'"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.assigned_user, u"agent1")
         self.assertEqual(obj.treating_groups, ev_org)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         # check condition 1 on maidata
         routing[0]["tal_condition_1"] = u"python:maildata['From'][0][1] == 'jean.courant@electrabel.eb'"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.assigned_user, u"agent1")
         self.assertEqual(obj.treating_groups, ev_org)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         # check condition 2 on assigned_user
         routing[0]["tal_condition_2"] = u"python:assigned_user == 'agent1'"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.assigned_user, u"agent1")
         self.assertEqual(obj.treating_groups, ev_org)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         # check False condition 2
         routing[0]["tal_condition_1"] = u""
         routing[0]["tal_condition_2"] = u"python:False"
@@ -318,6 +330,7 @@ class TestIncomingEmail(unittest.TestCase):
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.assigned_user, u"agent1")
         self.assertIsNone(obj.treating_groups)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
 
     def test_IncomingEmail_sender(self):
         params = {
@@ -374,12 +387,14 @@ class TestIncomingEmail(unittest.TestCase):
         )
         self.assertEqual(len(obj.sender), 1)
         self.assertEqual(obj.sender[0].to_object, self.pf["agent"]["agent-communication"])
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
 
         # internal held_positions: no primary organization, only one held position will be selected
         self.pf["agent"].primary_organization = None
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(len(obj.sender), 1)
         self.assertEqual(obj.sender[0].to_object, self.pf["agent"]["agent-secretariat"])
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
 
     def test_IncomingEmail_routing(self):
         params = {
@@ -428,21 +443,25 @@ class TestIncomingEmail(unittest.TestCase):
         obj = self.consume_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertIsNone(obj.assigned_user)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         routing[0]["transfer_email_pat"] = u".*@macommune.be"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.consume_incoming_email(params, metadata)
         self.assertIsNotNone(obj.treating_groups)
         self.assertIsNotNone(obj.assigned_user)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         routing[0]["original_email_pat"] = u".*@space.x"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.consume_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertIsNone(obj.assigned_user)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         routing[0]["original_email_pat"] = u".*@electrabel.eb"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.consume_incoming_email(params, metadata)
         self.assertIsNotNone(obj.treating_groups)
         self.assertIsNotNone(obj.assigned_user)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         # check condition1
         routing[0]["original_email_pat"] = None
         routing[0]["transfer_email_pat"] = None
@@ -451,11 +470,13 @@ class TestIncomingEmail(unittest.TestCase):
         obj = self.consume_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertIsNone(obj.assigned_user)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         routing[0]["tal_condition_1"] = u"python:True"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.consume_incoming_email(params, metadata)
         self.assertIsNotNone(obj.treating_groups)
         self.assertIsNotNone(obj.assigned_user)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         routing[0]["tal_condition_1"] = None
         # assigner_user
         # _empty_
@@ -465,24 +486,28 @@ class TestIncomingEmail(unittest.TestCase):
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["secretariat"].UID())
         self.assertIsNone(obj.assigned_user)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         # _transferer_
         routing[0]["user_value"] = u"_transferer_"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["secretariat"].UID())
         self.assertEqual(obj.assigned_user, "agent")
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         # defined user but not in group
         routing[0]["user_value"] = u"agent1"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.consume_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertIsNone(obj.assigned_user)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         # defined user but not in group
         routing[0]["tg_value"] = self.pgof["evenements"].UID()
         api.portal.set_registry_record(routing_key, routing)
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["evenements"].UID())
         self.assertEqual(obj.assigned_user, "agent1")
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
 
         # Primary org
         # _uni_org_only_
@@ -491,6 +516,7 @@ class TestIncomingEmail(unittest.TestCase):
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["evenements"].UID())
         self.assertEqual(obj.assigned_user, "agent1")
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         # _primary_org_
         routing[0]["user_value"] = u"_transferer_"
         routing[0]["tg_value"] = u"_primary_org_"
@@ -498,25 +524,30 @@ class TestIncomingEmail(unittest.TestCase):
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["communication"].UID())
         self.assertEqual(obj.assigned_user, "agent")
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         self.pf["agent"].primary_organization = None
         obj = self.consume_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertEqual(obj.assigned_user, "agent")
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         metadata["Agent"] = [["", "agent1@macommune.be"]]
         self.pf["agent1"].primary_organization = None
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["evenements"].UID())
         self.assertEqual(obj.assigned_user, "agent1")
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         api.group.add_user(
             groupname="{}_editeur".format(self.pgof["direction-generale"]["communication"].UID()), username="agent1"
         )
         obj = self.consume_incoming_email(params, metadata)
         self.assertIsNone(obj.treating_groups)
         self.assertEqual(obj.assigned_user, "agent1")
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         self.pf["agent1"]["agent-evenements"].get_person().primary_organization = self.pgof["evenements"].UID()
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["evenements"].UID())
         self.assertEqual(obj.assigned_user, "agent1")
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         # _hp_
         metadata["Agent"] = [["", "agent@macommune.be"]]
         self.pf["agent"].primary_organization = None
@@ -525,22 +556,26 @@ class TestIncomingEmail(unittest.TestCase):
         obj = self.consume_incoming_email(params, metadata)
         self.assertNotEqual(obj.treating_groups, self.pgof["direction-generale"]["communication"].UID())
         self.assertEqual(obj.assigned_user, "agent")
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         self.pf["agent"].primary_organization = self.pgof["direction-generale"]["communication"].UID()
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["communication"].UID())
         self.assertEqual(obj.assigned_user, "agent")
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         # _empty_
         routing[0]["tg_value"] = u"_empty_"
         api.portal.set_registry_record(routing_key, routing)
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.assigned_user, "agent")
         self.assertIsNone(obj.treating_groups)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         # defined group
         routing[0]["tg_value"] = self.pgof["direction-generale"]["grh"].UID()
         api.portal.set_registry_record(routing_key, routing)
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["grh"].UID())
         self.assertEqual(obj.assigned_user, "agent")
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
 
         # agent is part of the encodeurs group
         routing[0]["tg_value"] = u"_hp_"
@@ -548,6 +583,7 @@ class TestIncomingEmail(unittest.TestCase):
         api.group.add_user(groupname="encodeurs", username="agent")
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["communication"].UID())
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
         api.group.remove_user(groupname="encodeurs", username="agent")
 
         self.pf["agent"].primary_organization = None
@@ -555,6 +591,7 @@ class TestIncomingEmail(unittest.TestCase):
         hps = api.content.get("/contacts/personnel-folder/agent").get_held_positions()
         orgs = [hp.get_organization().UID() for hp in hps]
         self.assertTrue(obj.treating_groups in orgs)
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
 
         # Testing
         routing = [
@@ -573,6 +610,7 @@ class TestIncomingEmail(unittest.TestCase):
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["secretariat"].UID())
         self.assertEqual(obj.assigned_user, "encodeur")
+        self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
 
     def tearDown(self):
         print("removing:" + self.tdir)
