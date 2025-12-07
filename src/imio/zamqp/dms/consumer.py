@@ -7,6 +7,7 @@ from collective.contact.plonegroup.utils import organizations_with_suffixes
 from collective.dms.batchimport.utils import createDocument
 from collective.dms.batchimport.utils import log
 from collective.dms.mailcontent.dmsmail import internalReferenceIncomingMailDefaultValue
+from collective.iconifiedcategory.utils import calculate_category_id
 from collective.zamqp.consumer import Consumer
 from imio.dms.mail import IM_EDITOR_SERVICE_FUNCTIONS
 from imio.dms.mail.adapters import OMApprovalAdapter
@@ -94,6 +95,11 @@ class IncomingMail(DMSMainFile, CommonMethods):
         mail_types_rec = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.mail_types")
         mail_types = [dic["value"] for dic in mail_types_rec if dic["active"]]
         self.metadata["mail_type"] = mail_types[0]
+        file_metadata = {
+            "content_category": calculate_category_id(self.site["annexes_types"]["incoming_dms_files"]
+                                                      ["incoming-dms-file"])
+
+        }
         (document, main_file) = createDocument(
             self.context,
             create_period_folder(self.folder, datetime.datetime.now()),
@@ -102,6 +108,7 @@ class IncomingMail(DMSMainFile, CommonMethods):
             obj_file,
             owner=self.obj.creator,
             metadata=self.metadata,
+            file_metadata=file_metadata,
         )
         self.set_scan_attr(main_file)
         main_file.reindexObject(idxs=("SearchableText",))
@@ -109,7 +116,12 @@ class IncomingMail(DMSMainFile, CommonMethods):
 
     def _upload_file_extra_data(self):
         """ """
-        return self.scan_fields
+        file_metadata = {
+            "content_category": calculate_category_id(self.site["annexes_types"]["incoming_dms_files"]
+                                                      ["incoming-dms-file"])
+        }
+        file_metadata.update(self.scan_fields)
+        return file_metadata
 
     def update(self, the_file, obj_file):
         # update dmsfile when barcode is found in catalog
@@ -154,13 +166,22 @@ class OutgoingMail(DMSMainFile, CommonMethods):
 
     def _upload_file_extra_data(self):
         """ """
-        return self.scan_fields
+        file_metadata = {
+            "content_category": calculate_category_id(self.site["annexes_types"]["outgoing_dms_files"]
+                                                      ["outgoing-scanned-dms-file"])
+        }
+        file_metadata.update(self.scan_fields)
+        return file_metadata
 
     def create(self, obj_file):
         # create a new om when barcode isn't found in catalog
         if self.scan_fields["scan_date"]:
             self.metadata["outgoing_date"] = self.scan_fields["scan_date"]
         self.creating_group_split()
+        file_metadata = {
+            "content_category": calculate_category_id(self.site["annexes_types"]["outgoing_dms_files"]
+                                                      ["outgoing-scanned-dms-file"])
+        }
         (document, main_file) = createDocument(
             self.context,
             create_period_folder(self.folder, datetime.datetime.now()),
@@ -170,6 +191,7 @@ class OutgoingMail(DMSMainFile, CommonMethods):
             mainfile_type="dmsommainfile",
             owner=self.obj.creator,
             metadata=self.metadata,
+            file_metadata=file_metadata,
         )
         # MANAGE signed: to True ?
         self.scan_fields["signed"] = True
@@ -382,7 +404,12 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
 
     def _upload_file_extra_data(self):
         """ """
-        return self.scan_fields
+        file_metadata = {
+            "content_category": calculate_category_id(self.site["annexes_types"]["outgoing_dms_files"]
+                                                      ["outgoing-dms-file"])
+        }
+        file_metadata.update(self.scan_fields)
+        return file_metadata
 
     def create(self, obj_file):
         # create a new dmsfile
@@ -753,13 +780,22 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             log.info("file has been created (scan_id: {0})".format(main_file.scan_id))
             document.reindexObject()
 
+            file_metadata = {
+                "content_category": calculate_category_id(self.site["annexes_types"]["incoming_appendix_files"]
+                                                          ["incoming-appendix-file"])
+            }
             for attachment in attachments:
                 file_object = NamedBlobFile(attachment["content"], filename=attachment["filename"])
                 appendix = createContentInContainer(
-                    document, "dmsappendixfile", title=attachment["filename"], file=file_object
+                    document, "dmsappendixfile", title=attachment["filename"], file=file_object, **file_metadata
                 )
                 log.info("appendix has been created (id: %s)" % appendix.id)
 
     def _upload_file_extra_data(self):
         """ """
-        return self.scan_fields
+        file_metadata = {
+            "content_category": calculate_category_id(self.site["annexes_types"]["incoming_dms_files"]
+                                                      ["incoming-dms-file"])
+        }
+        file_metadata.update(self.scan_fields)
+        return file_metadata
