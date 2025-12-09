@@ -21,7 +21,7 @@ jobs:
 #            plone: "6.0"
     services:
       libreoffice:
-        image: imiobe/libreoffice:7.3
+        image: harbor.imio.be/library/libreoffice:25.2
         ports:
           - 2002:2002
         volumes:
