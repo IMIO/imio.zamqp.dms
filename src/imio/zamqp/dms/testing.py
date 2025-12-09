@@ -30,8 +30,10 @@ def create_tarfile(tdir, name, content):
     return open(os.path.join(tdir, name), 'rb')
 
 
-def store_fake_content(tdir, klass, params, metadata):
+def store_fake_content(tdir, klass, params, metadata=None):
     """Patch file_content value."""
+    if metadata is None:
+        metadata = {}
     if klass.__name__ == "IncomingEmail":
         fh = create_tarfile(tdir, params["file_metadata"]["filename"], json.dumps(metadata))
     else:
