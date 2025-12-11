@@ -83,6 +83,14 @@ class CommonMethods(object):
             if self.metadata[attr] not in [term.value for term in voc_i._terms]:  # noqa
                 del self.metadata[attr]  # noqa
 
+    def set_signed_attribute(self, mail, file_obj):
+        """Will check if signed attribute is used and set it to True"""
+        cat_elems = mail.categorized_elements
+        if cat_elems[file_obj.UID()]["signed_activated"]:
+            file_obj.signed = True
+            cat_elems[file_obj.UID()]["signed"] = True
+            # mail._p_changed = True  # is this needed ?
+
 
 class IncomingMail(DMSMainFile, CommonMethods):
     def create(self, obj_file):
@@ -194,6 +202,7 @@ class OutgoingMail(DMSMainFile, CommonMethods):
             file_metadata=file_metadata,
         )
         self.set_scan_attr(main_file)
+        self.set_signed_attribute(document, main_file)
         main_file.reindexObject(idxs=("SearchableText",))
         document.reindexObject(idxs=("SearchableText",))
         with api.env.adopt_user(username="scanner"):
@@ -212,6 +221,7 @@ class OutgoingMail(DMSMainFile, CommonMethods):
             if base_hasattr(document, key) and value:
                 setattr(document, key, value)
         new_file = self._upload_file(document, obj_file)
+        self.set_signed_attribute(document, new_file)
         document.reindexObject(idxs=("SearchableText",))
         log.info("file has been updated (scan_id: {0})".format(new_file.scan_id))
 
@@ -243,7 +253,6 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
         result = self.site.portal_catalog(
             portal_type=self.file_portal_types,
             scan_id=self.scan_fields.get("scan_id"),
-            signed=False,  # FIXME attention que cet index va peut-être être retiré
             sort_on="created",
             sort_order="descending",
         )
@@ -296,7 +305,10 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                     )
                     return
                 exact_file = self.document[cat_elems[uid]["id"]]  # noqa
-                self.update_file(exact_file, obj_file, cat_elems)
+                exact_file.file = obj_file
+                self.set_signed_attribute(self.document, exact_file)
+                log.info("file content has been updated (id: {0})".format(the_file.id))
+
                 # update session
                 sessions = get_session_annotation()
                 if uid not in sessions["uids"]:
@@ -315,13 +327,15 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                         sessions["sessions"][session_id]["state"] = "finalized"
             else:
                 # scanned document
-                # search for signed file TODO must be replaced by cat_elems search when scan_id is there SE-234
-                # FIXME attention que cet index va peut-être être retiré
-                result = self.site.portal_catalog(
-                    portal_type="dmsommainfile", scan_id=self.scan_fields.get("scan_id"), signed=True
-                )
-                if result:
-                    exact_file = result[0].getObject()
+                signed_id = None
+                # search for signed file TODO must use scan_id when it is there SE-234
+                for dic in cat_elems.values():
+                    # scan_id==self.scan_fields.get("scan_id")
+                    if dic["portal_type"] == "dmsommainfile" and dic.get("signed"):
+                        signed_id = dic["id"]
+                        break
+                if signed_id:
+                    exact_file = self.document[signed_id]
                     # Is there a new version because export failing or really a new sending
                     # Check if we are in a time delta of 20 hours: < = export failing else new sending
                     if (
@@ -329,7 +343,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                         and self.scan_fields["scan_date"]
                         and self.scan_fields["scan_date"] - exact_file.scan_date
                     ) < datetime.timedelta(0, 72000):  # 20 hours
-                        self.update(result[0].getObject(), obj_file)
+                        self.update(exact_file, obj_file)
                     elif not params["PVS"]:
                         # make a new file
                         self.create(obj_file)
@@ -412,6 +426,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
         # create a new dmsfile
         document = self.document
         main_file = self._upload_file(document, obj_file)
+        self.set_signed_attribute(document, main_file)
         document.reindexObject(idxs=("SearchableText",))
         log.info("file has been created (scan_id: {0})".format(main_file.scan_id))
 
@@ -423,16 +438,9 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
         document = the_file.aq_parent
         api.content.delete(obj=the_file)
         new_file = self._upload_file(document, obj_file)
+        self.set_signed_attribute(document, new_file)
         document.reindexObject(idxs=("SearchableText",))
         log.info("file has been updated (scan_id: {0})".format(new_file.scan_id))
-
-    def update_file(self, the_file, obj_file, cat_elems):
-        # replace file content
-        the_file.file = obj_file
-        the_file.signed = True
-        cat_elems[the_file.UID()]["signed"] = True
-        self.document._p_changed = True
-        log.info("file content has been updated (id: {0})".format(the_file.id))
 
 # INCOMING EMAILS #
 
