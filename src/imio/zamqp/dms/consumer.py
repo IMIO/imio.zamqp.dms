@@ -328,10 +328,10 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
             else:
                 # scanned document
                 signed_id = None
-                # search for signed file TODO must use scan_id when it is there SE-234
+                # search for signed file
                 for dic in cat_elems.values():
-                    # scan_id==self.scan_fields.get("scan_id")
-                    if dic["portal_type"] == "dmsommainfile" and dic.get("signed"):
+                    if (dic["portal_type"] == "dmsommainfile" and dic.get("signed")
+                            and dic.get("scan_id") == self.scan_fields.get("scan_id")):
                         signed_id = dic["id"]
                         break
                 if signed_id:
