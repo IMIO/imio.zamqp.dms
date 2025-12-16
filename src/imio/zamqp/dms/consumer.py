@@ -7,6 +7,7 @@ from collective.contact.plonegroup.utils import organizations_with_suffixes
 from collective.dms.batchimport.utils import createDocument
 from collective.dms.batchimport.utils import log
 from collective.dms.mailcontent.dmsmail import internalReferenceIncomingMailDefaultValue
+from collective.documentviewer.convert import Converter
 from collective.iconifiedcategory.utils import calculate_category_id
 from collective.zamqp.consumer import Consumer
 from imio.dms.mail import IM_EDITOR_SERVICE_FUNCTIONS
@@ -308,6 +309,8 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 exact_file.file = obj_file
                 self.set_signed_attribute(self.document, exact_file)
                 log.info("file content has been updated (id: {0})".format(the_file.id))
+                converter = Converter(exact_file)
+                converter()
 
                 # update session
                 sessions = get_session_annotation()
