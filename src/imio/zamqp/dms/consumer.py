@@ -34,6 +34,7 @@ from unidecode import unidecode
 from z3c.relationfield.relation import RelationValue
 from zope.component import getUtility
 from zope.intid.interfaces import IIntIds
+from zope.lifecycleevent import modified
 from zope.schema.interfaces import IVocabularyFactory
 
 import datetime
@@ -307,6 +308,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 exact_file = self.document[cat_elems[uid]["id"]]  # noqa
                 exact_file.file = obj_file
                 self.set_signed_attribute(self.document, exact_file)
+                modified(exact_file)
                 log.info("file content has been updated (id: {0})".format(the_file.id))
 
                 # update session
