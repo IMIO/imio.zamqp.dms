@@ -179,7 +179,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         # pdf file has been generated
         self.assertEqual(self.rep8.objectIds(), ["1", "reponse-candidature-ouvrier-communal.pdf"])
         nf_uid = self.rep8["reponse-candidature-ouvrier-communal.pdf"].UID()
-        self.assertEqual(oma.annot["pdf_files"][0], nf_uid)
+        self.assertEqual(oma.annot["pdf_files"][0], [nf_uid])
         self.assertEqual(oma.annot["session_id"], 0)
         self.assertIn(nf_uid, sessions['uids'])
         self.assertEqual(len(sessions["sessions"]), 1)

@@ -386,7 +386,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 if self.obj.metadata["scanner"] == u"_api_esign_":
                     # get all pdf files
                     f_uids = OMApprovalAdapter(self.document).pdf_files_uids
-                    if all([cat_elems.get(f_uid) and cat_elems[f_uid]["signed"] for f_uid in f_uids]):
+                    if all([cat_elems.get(f_uid) and cat_elems[f_uid]["signed"] for lst in f_uids for f_uid in lst]):
                         # we try to set as signed
                         final_state = "signed"
                         trans = signed_transitions

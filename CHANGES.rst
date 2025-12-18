@@ -13,6 +13,8 @@ Changelog
   [sgeulette]
 - Removed 'to_sign' and 'signed' fields from the scan behavior.
   [chris-adam]
+- Updated pdf_files_uids now containing list of lists
+  [sgeulette]
 
 0.22.1 (2025-05-27)
 -------------------
