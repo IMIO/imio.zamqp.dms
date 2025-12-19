@@ -147,9 +147,10 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         }
         self.assertEqual(len(self.pc(portal_type="dmsoutgoingmail")), 9)
         self.assertEqual(len(self.pc(portal_type="dmsommainfile")), 9)
+        # we modify rep8 to set approvers and esign
         self.assertEqual(self.rep8.objectIds(), ["1"])
         self.assertTrue(self.rep8["1"].to_sign)
-        self.assertTrue(self.rep8["1"].to_approve)
+        self.assertFalse(self.rep8["1"].to_approve)  # to_approve has been changed to False because no approvers
         self.assertEqual(api.content.get_state(self.rep8), "created")
         sessions = get_session_annotation(self.portal)
         self.assertEqual(sessions, {'sessions': {}, 'numbering': 0, 'uids': {}, 'c_uids': {}})
@@ -160,6 +161,8 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.assertFalse(self.rep8.seal)
         modified(self.rep8, Attributes(ISigningBehavior, "ISigningBehavior.signers"))
         oma = IOMApproval(self.rep8)
+        self.rep8["1"].to_approve = True
+        oma.add_file_to_approval(self.rep8["1"].UID())
         self.assertEqual(len(oma.files_uids), 1)
         self.assertEqual(len(oma.approvers), 1)
         self.assertEqual(oma.annot["approval"][0][0], {'status': 'w', 'approved_on': None, 'approved_by': None})
@@ -203,8 +206,10 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.rep9.seal = True
         modified(self.rep9, Attributes(ISigningBehavior, "ISigningBehavior.signers"))
         self.assertEqual(api.content.get_state(self.rep9), "created")
+        self.assertTrue(self.rep9["1"].to_sign)
+        self.assertFalse(self.rep9["1"].to_approve)  # to_approve has been changed to False because no approvers
         oma = IOMApproval(self.rep9)
-        self.assertEqual(len(oma.files_uids), 1)
+        self.assertEqual(len(oma.files_uids), 0)
         self.assertEqual(len(oma.approvers), 0)
         self.assertEqual(oma.annot["approval"], [])
         self.assertTrue(self.rep9["1"].to_sign)
@@ -238,10 +243,11 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         modified(self.rep7, Attributes(ISigningBehavior, "ISigningBehavior.signers"))
         self.assertEqual(api.content.get_state(self.rep7), "created")
         oma = IOMApproval(self.rep7)
-        self.assertEqual(len(oma.files_uids), 1)
+        self.assertEqual(len(oma.files_uids), 0)
         self.assertEqual(len(oma.approvers), 0)
         self.assertEqual(oma.annot["approval"], [])
         self.assertTrue(self.rep7["1"].to_sign)
+        self.assertFalse(self.rep7["1"].to_approve)
         # added another file to sign
         file_object = NamedBlobFile(self.rep9["1"].file.data, filename=u"Réponse salle.odt")
         createContentInContainer(
@@ -256,6 +262,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
                                                    ["outgoing-dms-file"]),
         )
         self.assertTrue(self.rep7["2"].to_sign)
+        self.assertFalse(self.rep7["2"].to_approve)
         self.assertEqual(self.rep7.objectIds(), ["1", "2"])
         # propose to be signed, so the session is created and sent
         api.content.transition(self.rep7, "propose_to_be_signed")
