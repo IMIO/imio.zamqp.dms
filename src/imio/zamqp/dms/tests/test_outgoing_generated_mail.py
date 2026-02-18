@@ -45,6 +45,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.portal.portal_setup.runImportStepFromProfile(
             "profile-imio.dms.mail:singles", "imiodmsmail-activate-esigning", run_dependencies=False
         )
+        api.portal.set_registry_record("imio.esign.file_url", "http://localhost/test")
         # print(self.tdir)
 
     def consume_ogm(self, params):

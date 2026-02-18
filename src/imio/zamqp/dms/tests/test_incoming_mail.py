@@ -83,9 +83,9 @@ class TestIncomingMail(BaseTestClass):
         params["external_id"] = u"010999900000008"
         params["file_metadata"]["filename"] = u"010999900000008.PDF"
         obj = obj.aq_parent["courrier8"]
-        self.assertIn("in-courrier2.pdf", obj)
+        self.assertIn('in-fiche-imio-urbanisme.jpg', obj)
         self.consume_incoming_mail(params)
-        self.assertNotIn("in-courrier2.pdf", obj)
+        self.assertNotIn('in-fiche-imio-urbanisme.jpg', obj)
         self.assertEqual(len(self.pc(portal_type="dmsincomingmail")), 10)
         self.assertEqual(len(self.pc(portal_type="dmsmainfile")), 10)
         self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file", "id": "010999900000008.pdf"})
