@@ -11,6 +11,7 @@ from plone.app.testing import TEST_USER_ID
 
 import datetime
 import tempfile
+import time
 
 
 class TestIncomingMail(BaseTestClass):
@@ -43,6 +44,7 @@ class TestIncomingMail(BaseTestClass):
         ie = IncomingMail("incoming-mail", "dmsincomingmail", msg)
         store_fake_content(self.tdir, IncomingMail, params)
         # Create incoming mail from message
+        time.sleep(1)  # to avoid same created date for all created objects
         ie.create_or_update()
         obj = self.pc(portal_type="dmsincomingmail", sort_on="created")[-1].getObject()
         return obj
@@ -83,9 +85,10 @@ class TestIncomingMail(BaseTestClass):
         params["external_id"] = u"010999900000008"
         params["file_metadata"]["filename"] = u"010999900000008.PDF"
         obj = obj.aq_parent["courrier8"]
-        self.assertIn('in-fiche-imio-urbanisme.jpg', obj)
+        self.assertEqual(len(obj.objectIds()), 1)
+        fid = obj.objectIds()[0]
         self.consume_incoming_mail(params)
-        self.assertNotIn('in-fiche-imio-urbanisme.jpg', obj)
+        self.assertNotIn(fid, obj)
         self.assertEqual(len(self.pc(portal_type="dmsincomingmail")), 10)
         self.assertEqual(len(self.pc(portal_type="dmsmainfile")), 10)
         self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file", "id": "010999900000008.pdf"})
