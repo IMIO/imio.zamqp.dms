@@ -15,6 +15,7 @@ from plone.app.testing import TEST_USER_ID
 import datetime
 import shutil
 import tempfile
+import time
 
 
 class TestIncomingEmail(BaseTestClass):
@@ -47,6 +48,7 @@ class TestIncomingEmail(BaseTestClass):
         store_fake_content(self.tdir, IncomingEmail, params, metadata)
 
         # Create incoming mail from message
+        time.sleep(1)  # to avoid same created date for all created objects
         ie.create_or_update()
         obj = self.pc(portal_type="dmsincoming_email", sort_on="created")[-1].getObject()
         return obj

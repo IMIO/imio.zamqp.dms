@@ -15,6 +15,8 @@ Changelog
   [chris-adam]
 - Updated pdf_files_uids now containing list of lists
   [sgeulette]
+- Used _update_esign_session method to update esign session files status and session status
+  [chris-adam]
 
 0.22.1 (2025-05-27)
 -------------------

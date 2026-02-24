@@ -22,6 +22,7 @@ from zope.lifecycleevent import modified
 import datetime
 import shutil
 import tempfile
+import time
 
 
 class TestOutgoingGeneratedMail(BaseTestClass):
@@ -45,6 +46,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.portal.portal_setup.runImportStepFromProfile(
             "profile-imio.dms.mail:singles", "imiodmsmail-activate-esigning", run_dependencies=False
         )
+        api.portal.set_registry_record("imio.esign.file_url", "http://localhost/test")
         # print(self.tdir)
 
     def consume_ogm(self, params):
@@ -58,6 +60,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         msg = create_fake_message(CoreOutgoingGeneratedMail, params)
         ogm = OutgoingGeneratedMail("outgoing-mail", "dmsoutgoingmail", msg)
         store_fake_content(self.tdir, OutgoingGeneratedMail, params)
+        time.sleep(1)  # to avoid same created date for all created objects
         ogm.create_or_update()
 
     def test_scanned_OGM(self):
