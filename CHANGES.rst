@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.22.2 (unreleased)
+0.23.0 (2026-03-03)
 -------------------
 
 - Updated versions following server.dmsmail.
