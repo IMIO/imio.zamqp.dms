@@ -5,8 +5,8 @@ Changelog
 0.23.1 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- Added dmsappendixfile portal_type to seach with external_id in OutgoingGeneratedMail.
+  [sgeulette]
 
 0.23.0 (2026-03-03)
 -------------------

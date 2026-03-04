@@ -246,7 +246,7 @@ def consume_outgoing_generated_mails(message, event):
 class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
     @property
     def file_portal_types(self):
-        return ["dmsommainfile"]
+        return ["dmsommainfile", "dmsappendixfile"]
 
     @property
     def existing_file(self):
