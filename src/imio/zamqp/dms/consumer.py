@@ -281,9 +281,10 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 return
             params = {"PD": False, "PC": False, "PVS": False}
             # PD = no date, PC = no closing, PVS = no new file
-            if the_file.scan_user:
+            if base_hasattr(the_file, "scan_user") and the_file.scan_user:
                 for param in the_file.scan_user.split("|"):
-                    params[param] = True
+                    if param in params:
+                        params[param] = True
             self.document = the_file.aq_parent  # noqa
             cat_elems = self.document.categorized_elements
 

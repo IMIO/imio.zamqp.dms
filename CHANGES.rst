@@ -7,6 +7,8 @@ Changelog
 
 - Added dmsappendixfile portal_type to seach with external_id in OutgoingGeneratedMail.
   [sgeulette]
+- Improved code to avoid error accessing potentially missing attribute
+  [sgeulette]
 
 0.23.0 (2026-03-03)
 -------------------
