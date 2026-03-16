@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.23.1 (unreleased)
+0.23.1 (2026-03-16)
 -------------------
 
 - Added dmsappendixfile portal_type to seach with external_id in OutgoingGeneratedMail.
