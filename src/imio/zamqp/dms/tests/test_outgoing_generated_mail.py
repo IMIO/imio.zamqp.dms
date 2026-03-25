@@ -170,7 +170,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.assertEqual(len(oma.approvers), 1)
         self.assertEqual(oma.annot["approval"][0][0], {'status': 'w', 'approved_on': None, 'approved_by': None})
         self.assertIsNone(oma.annot["current_nb"])
-        self.assertIsNone(oma.annot["session_id"])
+        self.assertEquals(len(oma.annot["session_ids"]), 0)
         api.content.transition(self.rep8, "propose_to_approve")
         self.assertEqual(api.content.get_state(self.rep8), "to_approve")
         # dirg approves
@@ -186,7 +186,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.assertEqual(self.rep8.objectIds(), ["1", "reponse-candidature-ouvrier-communal.pdf"])
         nf_uid = self.rep8["reponse-candidature-ouvrier-communal.pdf"].UID()
         self.assertEqual(oma.annot["pdf_files"][0], [nf_uid])
-        self.assertEqual(oma.annot["session_id"], 0)
+        self.assertListEqual(oma.annot["session_ids"].data, [0])
         self.assertIn(nf_uid, sessions['uids'])
         self.assertEqual(len(sessions["sessions"]), 1)
         self.assertEqual(sessions["sessions"][0]["state"], "draft")  # but in reality, it will be updated
@@ -220,7 +220,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         api.content.transition(self.rep9, "propose_to_be_signed")
         self.assertIsNone(oma.annot["current_nb"])
         self.assertEqual(oma.annot["approval"], [])
-        self.assertEqual(oma.annot["session_id"], 1)
+        self.assertListEqual(oma.annot["session_ids"].data, [1])
         # pdf file has been generated
         self.assertEqual(self.rep9.objectIds(), ["1", "reponse-salle.pdf"])
         nf_uid = self.rep9["reponse-salle.pdf"].UID()
@@ -272,7 +272,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         oma = IOMApproval(self.rep7)
         self.assertEqual(len(oma.files_uids), 2)
         self.assertEqual(oma.annot["approval"], [])
-        self.assertEqual(oma.annot["session_id"], 2)
+        self.assertListEqual(oma.annot["session_ids"].data, [2])
         # pdf file has been generated
         pdf_id1 = u"accuse-de-reception.pdf"
         pdf_id2 = u"reponse-salle.pdf"

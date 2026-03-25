@@ -5,8 +5,8 @@ Changelog
 0.23.2 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- Upgraded products and corrected tests.
+  [sgeulette]
 
 0.23.1 (2026-03-16)
 -------------------

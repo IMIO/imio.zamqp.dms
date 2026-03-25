@@ -114,7 +114,7 @@ class TestIncomingEmail(BaseTestClass):
             # unknown agent has forwarded
             params["external_id"] = u"01Z9999000000{:02d}".format(i + 1)
             obj = self.consume_incoming_email(params, metadata)
-            self.assertEqual(obj.mail_type, u"courrier")
+            self.assertEqual(obj.mail_type, u"email")
             self.assertEqual(obj.orig_sender_email, u'"Dexter Morgan" <dexter.morgan@mpd.am>')
             self.assertIsNone(obj.sender)
             self.assertIsNone(obj.treating_groups)
