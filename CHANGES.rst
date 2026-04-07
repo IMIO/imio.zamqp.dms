@@ -7,6 +7,8 @@ Changelog
 
 - Upgraded products and corrected tests.
   [sgeulette]
+- Added esigned attribute on consumed file following esign use.
+  [sgeulette]
 
 0.23.1 (2026-03-16)
 -------------------

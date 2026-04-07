@@ -307,6 +307,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                     return
                 exact_file = self.document[cat_elems[uid]["id"]]  # noqa
                 exact_file.file = obj_file
+                setattr(exact_file, "esigned", True)
                 self.set_signed_attribute(self.document, exact_file)
                 log.info("file content has been updated (id: {0})".format(the_file.id))
                 converter = Converter(exact_file)
@@ -320,7 +321,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 # search for signed file TODO must use scan_id when it is there SE-234
                 for dic in cat_elems.values():
                     # scan_id==self.scan_fields.get("scan_id")
-                    if dic["portal_type"] == "dmsommainfile" and dic.get("signed"):
+                    if dic["portal_type"] == "dmsommainfile" and dic.get("signed") and not dic.get("esigned"):
                         signed_id = dic["id"]
                         break
                 if signed_id:
@@ -335,7 +336,8 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                         self.update(exact_file, obj_file)
                     elif not params["PVS"]:
                         # make a new file
-                        self.create(obj_file)
+                        exact_file = self.create(obj_file)
+                        setattr(exact_file, "esigned", False)
                     else:
                         log.error(
                             "file not considered: existing signed but PVS (scan_id: {0})".format(
@@ -344,7 +346,8 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                         )
                 elif not params["PVS"]:
                     # make a new file
-                    self.create(obj_file)
+                    exact_file = self.create(obj_file)
+                    setattr(exact_file, "esigned", False)
                 else:
                     # register scan date on original model
                     the_file.scan_date = self.scan_fields["scan_date"]
@@ -418,6 +421,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
         self.set_signed_attribute(document, main_file)
         document.reindexObject(idxs=("SearchableText",))
         log.info("file has been created (scan_id: {0})".format(main_file.scan_id))
+        return main_file
 
     def update(self, the_file, obj_file):
         # replace an existing dmsfile
