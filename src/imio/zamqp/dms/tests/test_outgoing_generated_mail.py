@@ -40,6 +40,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.pf = self.ctct["personnel-folder"]
         self.tdir = tempfile.mkdtemp()
         self.external_id_suffix = 0  # up to 99 possible ids
+        self.rep6 = get_object(oid="reponse6", ptype="dmsoutgoingmail")
         self.rep7 = get_object(oid="reponse7", ptype="dmsoutgoingmail")
         self.rep8 = get_object(oid="reponse8", ptype="dmsoutgoingmail")
         self.rep9 = get_object(oid="reponse9", ptype="dmsoutgoingmail")
@@ -165,7 +166,8 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         modified(self.rep8, Attributes(ISigningBehavior, "ISigningBehavior.signers"))
         oma = IOMApproval(self.rep8)
         self.rep8["1"].to_approve = True
-        oma.add_file_to_approval(self.rep8["1"].UID())
+        uid = self.rep8["1"].UID()
+        oma.add_file_to_approval(uid)
         self.assertEqual(len(oma.files_uids), 1)
         self.assertEqual(len(oma.approvers), 1)
         self.assertEqual(oma.annot["approval"][0][0], {'status': 'w', 'approved_on': None, 'approved_by': None})
@@ -176,30 +178,31 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         # dirg approves
         self.assertEqual(oma.annot["current_nb"], 0)
         self.assertEqual(oma.annot["approval"][0][0]["status"], "p")
+        self.assertEqual(self.rep8["1"].file.filename, u"Réponse candidature ouvrier communal.odt")
         ret, _ = oma.approve_file(self.rep8["1"], "dirg", transition="propose_to_be_signed")
         self.assertTrue(ret)
         self.assertEqual(oma.annot["approval"][0][0]["status"], "a")
         self.assertEqual(oma.annot["approval"][0][0]["approved_by"], "dirg")
         self.assertEqual(oma.annot["current_nb"], -1)  # approval is finished
         self.assertEqual(api.content.get_state(self.rep8), "to_be_signed")
-        # pdf file has been generated
-        self.assertEqual(self.rep8.objectIds(), ["1", "reponse-candidature-ouvrier-communal.pdf"])
-        nf_uid = self.rep8["reponse-candidature-ouvrier-communal.pdf"].UID()
-        self.assertEqual(oma.annot["pdf_files"][0], [nf_uid])
+        # pdf file has been generated and has replaced original file
+        self.assertEqual(self.rep8.objectIds(), ["1"])
+        self.assertEqual(self.rep8["1"].file.filename, u"Réponse candidature ouvrier communal__{}.pdf".format(uid))
+        self.assertEqual(oma.annot["pdf_files"][0], [uid])
         self.assertListEqual(oma.annot["session_ids"].data, [0])
-        self.assertIn(nf_uid, sessions['uids'])
+        self.assertIn(uid, sessions['uids'])
         self.assertEqual(len(sessions["sessions"]), 1)
         self.assertEqual(sessions["sessions"][0]["state"], "draft")  # but in reality, it will be updated
         self.assertEqual(len(sessions["sessions"][0]["files"]), 1)
         self.assertEqual(sessions["sessions"][0]["files"][0]["status"], "")
-        self.assertTrue(sessions["sessions"][0]["files"][0]["filename"].endswith(u"__{}.pdf".format(nf_uid)))
+        self.assertTrue(sessions["sessions"][0]["files"][0]["filename"].endswith(u"__{}.pdf".format(uid)))
         params["file_metadata"]["filename"] = sessions["sessions"][0]["files"][0]["filename"]
-        old_file_size = self.rep8["reponse-candidature-ouvrier-communal.pdf"].file.size
-        self.assertEqual(self.rep8["reponse-candidature-ouvrier-communal.pdf"].signed, False)
+        old_file_size = self.rep8["1"].file.size
+        self.assertEqual(self.rep8["1"].signed, False)
         # we simulate the session sent where the state will be changed
         self.consume_ogm(params)
-        self.assertEqual(self.rep8["reponse-candidature-ouvrier-communal.pdf"].signed, True)
-        self.assertNotEqual(self.rep8["reponse-candidature-ouvrier-communal.pdf"].file.size, old_file_size)
+        self.assertEqual(self.rep8["1"].signed, True)
+        self.assertNotEqual(self.rep8["1"].file.size, old_file_size)
         self.assertEqual(api.content.get_state(self.rep8), "signed")
         self.assertEqual(sessions["sessions"][0]["files"][0]["status"], "received")
         self.assertEqual(sessions["sessions"][0]["state"], "finalized")
@@ -216,26 +219,28 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.assertEqual(len(oma.approvers), 0)
         self.assertEqual(oma.annot["approval"], [])
         self.assertTrue(self.rep9["1"].to_sign)
+        self.assertEqual(self.rep9["1"].file.filename, u"Réponse salle.odt")
         # propose to be signed, so the session is created and sent
         api.content.transition(self.rep9, "propose_to_be_signed")
         self.assertIsNone(oma.annot["current_nb"])
         self.assertEqual(oma.annot["approval"], [])
         self.assertListEqual(oma.annot["session_ids"].data, [1])
-        # pdf file has been generated
-        self.assertEqual(self.rep9.objectIds(), ["1", "reponse-salle.pdf"])
-        nf_uid = self.rep9["reponse-salle.pdf"].UID()
-        self.assertIn(nf_uid, sessions['uids'])
+        # pdf file has been generated and has replaced original file
+        self.assertEqual(self.rep9.objectIds(), ["1"])
+        uid = self.rep9["1"].UID()
+        self.assertEqual(self.rep9["1"].file.filename, u"Réponse salle__{}.pdf".format(uid))
+        self.assertIn(uid, sessions['uids'])
         self.assertEqual(len(sessions["sessions"]), 2)
         self.assertEqual(sessions["sessions"][1]["state"], "draft")  # but in reality, it will be updated
         self.assertEqual(len(sessions["sessions"][1]["files"]), 1)
         self.assertEqual(sessions["sessions"][1]["files"][0]["status"], "")
-        self.assertTrue(sessions["sessions"][1]["files"][0]["filename"].endswith(u"__{}.pdf".format(nf_uid)))
+        self.assertTrue(sessions["sessions"][1]["files"][0]["filename"].endswith(u"__{}.pdf".format(uid)))
         params["file_metadata"]["filename"] = sessions["sessions"][1]["files"][0]["filename"]
         params["external_id"] = u"012999900000009"
-        old_file_size = self.rep9["reponse-salle.pdf"].file.size
+        old_file_size = self.rep9["1"].file.size
         self.consume_ogm(params)
-        self.assertEqual(self.rep9["reponse-salle.pdf"].signed, True)
-        self.assertNotEqual(self.rep9["reponse-salle.pdf"].file.size, old_file_size)
+        self.assertEqual(self.rep9["1"].signed, True)
+        self.assertNotEqual(self.rep9["1"].file.size, old_file_size)
         self.assertEqual(api.content.get_state(self.rep9), "signed")
         self.assertEqual(sessions["sessions"][1]["files"][0]["status"], "received")
         self.assertEqual(sessions["sessions"][1]["state"], "finalized")
@@ -251,8 +256,10 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.assertEqual(oma.annot["approval"], [])
         self.assertTrue(self.rep7["1"].to_sign)
         self.assertFalse(self.rep7["1"].to_approve)
+        self.assertEqual(self.rep7["1"].file.filename, u"Accusé de réception.odt")
         # added another file to sign
-        file_object = NamedBlobFile(self.rep9["1"].file.data, filename=u"Réponse salle.odt")
+        file_object = NamedBlobFile(self.rep6["1"].file.data, filename=self.rep6["1"].file.filename)
+        self.assertEqual(file_object.filename, u"Réponse salle.odt")
         createContentInContainer(
             self.rep7,
             "dmsommainfile",
@@ -274,47 +281,41 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.assertEqual(oma.annot["approval"], [])
         self.assertListEqual(oma.annot["session_ids"].data, [2])
         # pdf file has been generated
-        pdf_id1 = u"accuse-de-reception.pdf"
-        pdf_id2 = u"reponse-salle.pdf"
         filename1 = u"Accusé de réception"
         filename2 = u"Réponse salle"
         ext_id1 = u"012999900000007"
         ext_id2 = u"012999900000010"
-        if self.rep7.objectIds()[-1] == pdf_id1:
-            pdf_id1, pdf_id2 = pdf_id2, pdf_id1
-            filename1, filename2 = filename2, filename1
-            ext_id1, ext_id2 = ext_id2, ext_id1
-        self.assertEqual(self.rep7.objectIds(), ["1", "2", pdf_id1, pdf_id2])
+        self.assertEqual(self.rep7.objectIds(), ["1", "2"])
         self.assertTrue(sessions["sessions"][2]["files"][0]["filename"].startswith(filename1))
         self.assertTrue(sessions["sessions"][2]["files"][1]["filename"].startswith(filename2))
-        nf_uid1 = self.rep7[pdf_id1].UID()
-        nf_uid2 = self.rep7[pdf_id2].UID()
-        self.assertIn(nf_uid1, sessions['uids'])
-        self.assertIn(nf_uid2, sessions['uids'])
+        uid1 = self.rep7["1"].UID()
+        uid2 = self.rep7["2"].UID()
+        self.assertIn(uid1, sessions['uids'])
+        self.assertIn(uid2, sessions['uids'])
         self.assertEqual(len(sessions["sessions"]), 3)
         self.assertEqual(sessions["sessions"][2]["state"], "draft")  # but in reality, it will be updated
         self.assertEqual(len(sessions["sessions"][2]["files"]), 2)
         self.assertEqual(sessions["sessions"][2]["files"][0]["status"], "")
         self.assertEqual(sessions["sessions"][2]["files"][1]["status"], "")
-        self.assertTrue(sessions["sessions"][2]["files"][0]["filename"].endswith(u"__{}.pdf".format(nf_uid1)))
-        self.assertTrue(sessions["sessions"][2]["files"][1]["filename"].endswith(u"__{}.pdf".format(nf_uid2)))
+        self.assertTrue(sessions["sessions"][2]["files"][0]["filename"].endswith(u"__{}.pdf".format(uid1)))
+        self.assertTrue(sessions["sessions"][2]["files"][1]["filename"].endswith(u"__{}.pdf".format(uid2)))
         # we will consume first file
         params["file_metadata"]["filename"] = sessions["sessions"][2]["files"][0]["filename"]
         params["external_id"] = ext_id1
-        old_file_size = self.rep7[pdf_id1].file.size
+        old_file_size = self.rep7["1"].file.size
         self.consume_ogm(params)
-        self.assertEqual(self.rep7[pdf_id1].signed, True)
-        self.assertNotEqual(self.rep7[pdf_id1].file.size, old_file_size)
+        self.assertEqual(self.rep7["1"].signed, True)
+        self.assertNotEqual(self.rep7["1"].file.size, old_file_size)
         self.assertEqual(api.content.get_state(self.rep7), "to_be_signed")
         self.assertEqual(sessions["sessions"][2]["files"][0]["status"], "received")
         self.assertEqual(sessions["sessions"][2]["state"], "draft")
         # we will consume second file (accuse de reception)
         params["file_metadata"]["filename"] = sessions["sessions"][2]["files"][1]["filename"]
         params["external_id"] = ext_id2
-        old_file_size = self.rep7[pdf_id2].file.size
+        old_file_size = self.rep7["2"].file.size
         self.consume_ogm(params)
-        self.assertEqual(self.rep7[pdf_id2].signed, True)
-        self.assertNotEqual(self.rep7[pdf_id2].file.size, old_file_size)
+        self.assertEqual(self.rep7["2"].signed, True)
+        self.assertNotEqual(self.rep7["2"].file.size, old_file_size)
         self.assertEqual(api.content.get_state(self.rep7), "signed")
         self.assertEqual(sessions["sessions"][2]["files"][1]["status"], "received")
         self.assertEqual(sessions["sessions"][2]["state"], "finalized")
