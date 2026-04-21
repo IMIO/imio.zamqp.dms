@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.23.2 (unreleased)
+0.24.0 (2026-04-21)
 -------------------
 
 - Upgraded products and corrected tests.
