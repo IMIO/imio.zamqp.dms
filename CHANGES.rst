@@ -15,6 +15,8 @@ Changelog
   [sgeulette]
 - Added esigned attribute on consumed file following esign use.
   [sgeulette]
+- Added test_outgoing_mail.
+  [chris-adam]
 
 0.23.1 (2026-03-16)
 -------------------

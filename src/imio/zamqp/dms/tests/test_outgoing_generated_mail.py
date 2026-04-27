@@ -39,6 +39,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.pgof = self.ctct["plonegroup-organization"]
         self.pf = self.ctct["personnel-folder"]
         self.tdir = tempfile.mkdtemp()
+        # print(self.tdir)
         self.external_id_suffix = 0  # up to 99 possible ids
         self.rep6 = get_object(oid="reponse6", ptype="dmsoutgoingmail")
         self.rep7 = get_object(oid="reponse7", ptype="dmsoutgoingmail")
@@ -48,7 +49,6 @@ class TestOutgoingGeneratedMail(BaseTestClass):
             "profile-imio.dms.mail:singles", "imiodmsmail-activate-esigning", run_dependencies=False
         )
         api.portal.set_registry_record("imio.esign.file_url", "http://localhost/test")
-        # print(self.tdir)
 
     def consume_ogm(self, params):
         from imio.zamqp.dms.consumer import OutgoingGeneratedMail  # import later to avoid core config error
