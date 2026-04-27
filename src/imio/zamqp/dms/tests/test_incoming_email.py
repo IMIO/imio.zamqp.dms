@@ -32,8 +32,9 @@ class TestIncomingEmail(BaseTestClass):
         self.pgof = self.ctct["plonegroup-organization"]
         self.pf = self.ctct["personnel-folder"]
         self.tdir = tempfile.mkdtemp()
+        # print(self.tdir)
+        self.addCleanup(shutil.rmtree, self.tdir, ignore_errors=True)
         self.external_id_suffix = 1  # up to 99 possible ids
-        print(self.tdir)
 
     def consume_incoming_email(self, params, metadata):
         from imio.zamqp.dms.consumer import IncomingEmail  # import later to avoid core config error

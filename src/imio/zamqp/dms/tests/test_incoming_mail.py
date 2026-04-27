@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import shutil
 from copy import deepcopy
 from imio.dataexchange.core.dms import IncomingMail as CoreIncomingMail
 from imio.dms.mail.testing import DMSMAIL_INTEGRATION_TESTING
@@ -28,8 +29,9 @@ class TestIncomingMail(BaseTestClass):
         self.pgof = self.ctct["plonegroup-organization"]
         self.pf = self.ctct["personnel-folder"]
         self.tdir = tempfile.mkdtemp()
+        # print(self.tdir)
+        self.addCleanup(shutil.rmtree, self.tdir, ignore_errors=True)
         self.external_id_suffix = 1  # up to 99 possible ids
-        print(self.tdir)
 
     def consume_incoming_mail(self, params):
         from imio.zamqp.dms.consumer import IncomingMail  # import later to avoid core config error

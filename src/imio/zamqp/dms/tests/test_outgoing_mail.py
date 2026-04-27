@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import shutil
+
 from collective.iconifiedcategory.utils import calculate_category_id
 from copy import deepcopy
 from imio.dataexchange.core.dms import OutgoingMail as CoreOutgoingMail
@@ -30,8 +32,9 @@ class TestOutgoingMail(BaseTestClass):
         self.pgof = self.ctct["plonegroup-organization"]
         self.pf = self.ctct["personnel-folder"]
         self.tdir = tempfile.mkdtemp()
+        # print(self.tdir)
+        self.addCleanup(shutil.rmtree, self.tdir, ignore_errors=True)
         self.external_id_suffix = 1  # up to 99 possible ids
-        print(self.tdir)
 
     def consume_outgoing_mail(self, params):
         from imio.zamqp.dms.consumer import OutgoingMail  # import later to avoid core config error
