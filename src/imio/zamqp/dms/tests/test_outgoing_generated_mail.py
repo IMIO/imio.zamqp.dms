@@ -40,7 +40,6 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.pf = self.ctct["personnel-folder"]
         self.tdir = tempfile.mkdtemp()
         # print(self.tdir)
-        self.addCleanup(shutil.rmtree, self.tdir, ignore_errors=True)
         self.external_id_suffix = 0  # up to 99 possible ids
         self.rep6 = get_object(oid="reponse6", ptype="dmsoutgoingmail")
         self.rep7 = get_object(oid="reponse7", ptype="dmsoutgoingmail")
