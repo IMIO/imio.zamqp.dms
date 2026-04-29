@@ -5,8 +5,8 @@ Changelog
 0.24.1 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- Added send_modes field on incoming (e)mails.
+  [chris-adam]
 
 0.24.0 (2026-04-21)
 -------------------

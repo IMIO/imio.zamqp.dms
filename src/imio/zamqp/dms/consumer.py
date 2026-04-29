@@ -103,6 +103,7 @@ class IncomingMail(DMSMainFile, CommonMethods):
         mail_types_rec = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.mail_types")
         mail_types = [dic["value"] for dic in mail_types_rec if dic["active"]]
         self.metadata["mail_type"] = mail_types[0]
+        self.metadata["send_modes"] = [u"post"]
         file_metadata = {
             "content_category": calculate_category_id(self.site["annexes_types"]["incoming_dms_files"]
                                                       ["incoming-dms-file"])
@@ -505,6 +506,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             self.metadata["mail_type"] = u"email"
         else:
             self.metadata["mail_type"] = mail_types[0]
+        self.metadata["send_modes"] = [u"email"]
 
         intids = getUtility(IIntIds)
         with api.env.adopt_user(user=api.user.get_current()):
