@@ -109,7 +109,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         old_uid = self.rep8[file_id].UID()
         self.consume_ogm(params)
         self.assertEqual(self.rep8.objectIds(), ["1", file_id])
-        self.assertNotEqual(self.rep8[file_id].UID(), old_uid)  # new object
+        self.assertEqual(self.rep8[file_id].UID(), old_uid)  # in-place update preserves UID
         self.assertEqual(self.rep8.outgoing_date.strftime("%Y-%m-%d %H:%M"), "2021-05-18 14:16")
         self.assertEqual(self.rep8[file_id].scan_date.strftime("%Y-%m-%d %H:%M"), "2021-05-18 14:16")
         self.assertFalse(self.rep8.is_email())

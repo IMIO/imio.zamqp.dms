@@ -33,7 +33,9 @@ from Products.CMFPlone.utils import safe_unicode
 from unidecode import unidecode
 from z3c.relationfield.relation import RelationValue
 from zope.component import getUtility
+from zope.event import notify
 from zope.intid.interfaces import IIntIds
+from zope.lifecycleevent import ObjectModifiedEvent
 from zope.schema.interfaces import IVocabularyFactory
 
 import datetime
@@ -424,16 +426,20 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
         return main_file
 
     def update(self, the_file, obj_file):
-        # replace an existing dmsfile
+        # update existing dmsfile content in-place to preserve UID (and approval annotation references)
         if self.obj.version < getattr(the_file, "version", 1):
             log.info("file not updated due to an oldest version (scan_id: {0})".format(the_file.scan_id))
             return
         document = the_file.aq_parent
-        api.content.delete(obj=the_file)
-        new_file = self._upload_file(document, obj_file)
-        self.set_signed_attribute(document, new_file)
+        the_file.file = obj_file
+        for key, value in self.scan_fields.items():
+            if value:
+                setattr(the_file, key, value)
+        the_file.reindexObject(idxs=("scan_id",))
+        notify(ObjectModifiedEvent(the_file))
+        self.set_signed_attribute(document, the_file)
         document.reindexObject(idxs=("SearchableText",))
-        log.info("file has been updated (scan_id: {0})".format(new_file.scan_id))
+        log.info("file has been updated (scan_id: {0})".format(the_file.scan_id))
 
 # INCOMING EMAILS #
 
