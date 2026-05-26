@@ -5,7 +5,8 @@ Changelog
 0.24.1 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fixed omail update when involved in approval.
+  [chris-adam]
 
 
 0.24.0 (2026-04-21)
