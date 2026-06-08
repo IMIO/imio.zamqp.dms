@@ -103,6 +103,12 @@ class IncomingMail(DMSMainFile, CommonMethods):
         mail_types_rec = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.mail_types")
         mail_types = [dic["value"] for dic in mail_types_rec if dic["active"]]
         self.metadata["mail_type"] = mail_types[0]
+        imail_fields = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.imail_fields")
+        if [dic for dic in imail_fields or [] if dic["field_name"] == "send_modes"]:
+            send_modes_rec = api.portal.get_registry_record(
+                "imio.dms.mail.browser.settings.IImioDmsMailConfig.imail_send_modes")
+            send_modes = [dic["value"] for dic in send_modes_rec if dic["active"]]
+            self.metadata["send_modes"] = send_modes[0]
         file_metadata = {
             "content_category": calculate_category_id(self.site["annexes_types"]["incoming_dms_files"]
                                                       ["incoming-dms-file"])
@@ -505,6 +511,15 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             self.metadata["mail_type"] = u"email"
         else:
             self.metadata["mail_type"] = mail_types[0]
+        imail_fields = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.imail_fields")
+        if [dic for dic in imail_fields or [] if dic["field_name"] == "send_modes"]:
+            send_modes_rec = api.portal.get_registry_record(
+                "imio.dms.mail.browser.settings.IImioDmsMailConfig.imail_send_modes")
+            send_modes = [dic["value"] for dic in send_modes_rec if dic["active"]]
+            if u"email" in send_modes:
+                self.metadata["send_modes"] = u"email"
+            else:
+                self.metadata["send_modes"] = send_modes[0]
 
         intids = getUtility(IIntIds)
         with api.env.adopt_user(user=api.user.get_current()):

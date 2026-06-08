@@ -5,8 +5,12 @@ Changelog
 0.24.1 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- Added temp dir cleanup
+  [sgeulette]
+- Added test_outgoing_mail.
+  [chris-adam]
+- Used im send_modes field
+  [sgeulette]
 
 0.24.0 (2026-04-21)
 -------------------
@@ -15,8 +19,6 @@ Changelog
   [sgeulette]
 - Added esigned attribute on consumed file following esign use.
   [sgeulette]
-- Added test_outgoing_mail.
-  [chris-adam]
 
 0.23.1 (2026-03-16)
 -------------------
