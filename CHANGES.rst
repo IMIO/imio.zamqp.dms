@@ -7,6 +7,8 @@ Changelog
 
 - Upgraded appy to 1.0.21.
   [sgeulette]
+- Corrected test
+  [sgeulette]
 
 0.25.0 (2026-06-19)
 -------------------
