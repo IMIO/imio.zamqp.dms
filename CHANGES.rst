@@ -5,8 +5,8 @@ Changelog
 0.25.1 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- Upgraded appy to 1.0.21.
+  [sgeulette]
 
 0.25.0 (2026-06-19)
 -------------------
