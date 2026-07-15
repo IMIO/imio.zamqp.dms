@@ -158,7 +158,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self._mark_manually_signed(self.rep7, "1", datetime.datetime(2021, 5, 15, 10, 0))
         self.consume_ogm(params)
         self.assertEqual(len(self.rep7.objectIds()), 2)  # new file created
-        new_id = [i for i in self.rep7.objectIds() if i != "1"][0]
+        new_id = next(i for i in self.rep7.objectIds() if i != "1")
         self.assertFalse(self.rep7[new_id].esigned)
         # manually signed file + delta > 20h + PVS => file not considered (nothing created/changed)
         sid6 = self.rep6["1"].scan_id
@@ -417,7 +417,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.assertEqual(len(self.rep8.objectIds()), 2)
         self.assertEqual(self.rep8["1"].UID(), esigned_uid)
         self.assertTrue(self.rep8["1"].esigned)
-        new_id = [i for i in self.rep8.objectIds() if i != "1"][0]
+        new_id = next(i for i in self.rep8.objectIds() if i != "1")
         self.assertFalse(self.rep8[new_id].esigned)
         # Other case: e-signature was started (esign=True) but the electronic file never came back
         # (no file is esigned). The scanned file is simply created.
@@ -428,7 +428,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         params["file_metadata"]["filename"] = u"012999900000009.pdf"
         self.consume_ogm(params)
         self.assertEqual(len(self.rep9.objectIds()), 2)  # scanned file created as usual
-        new_id9 = [i for i in self.rep9.objectIds() if i != "1"][0]
+        new_id9 = next(i for i in self.rep9.objectIds() if i != "1")
         self.assertFalse(self.rep9[new_id9].esigned)
 
     def tearDown(self):
