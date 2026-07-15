@@ -9,6 +9,10 @@ Changelog
   [sgeulette]
 - Corrected test
   [sgeulette]
+- Checked also on scan_id when finding signed file. Improved tests
+  [sgeulette]
+- Fixed omail update when involved in approval.
+  [chris-adam]
 
 0.25.0 (2026-06-19)
 -------------------
