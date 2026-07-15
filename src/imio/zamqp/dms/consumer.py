@@ -279,7 +279,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
     """
 
     def create_or_update(self):
-        with api.env.adopt_roles(["Manager"]):
+        with (api.env.adopt_roles(["Manager"])):
             obj_file = self.obj_file  # namedblobfile object
             the_file = self.existing_file  # dmsfile
             if the_file is None:
@@ -324,10 +324,11 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
             else:
                 # scanned document
                 signed_id = None
-                # search for signed file TODO must use scan_id when it is there SE-234
+                # search for signed file
                 for dic in cat_elems.values():
-                    # scan_id==self.scan_fields.get("scan_id")
-                    if dic["portal_type"] == "dmsommainfile" and dic.get("signed") and not dic.get("esigned"):
+                    # check if a mainfile with same scan_id is already manually signed
+                    if (dic["portal_type"] == "dmsommainfile" and dic.get("scan_id") == self.scan_fields.get("scan_id")
+                            and dic.get("signed") and not dic.get("esigned")):
                         signed_id = dic["id"]
                         break
                 if signed_id:

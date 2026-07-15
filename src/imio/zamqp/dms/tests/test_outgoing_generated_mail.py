@@ -64,6 +64,19 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         time.sleep(1)  # to avoid same created date for all created objects
         ogm.create_or_update()
 
+    def _mark_manually_signed(self, mail, fid, scan_date):
+        """Turn an existing mainfile into a manually signed (not esigned) one."""
+        the_file = mail[fid]
+        the_file.signed = True
+        the_file.esigned = False
+        the_file.scan_date = scan_date
+        ce = mail.categorized_elements[the_file.UID()]
+        ce["signed"] = True
+        ce["esigned"] = False
+        ce["scan_id"] = the_file.scan_id
+        mail._p_changed = True
+        return the_file
+
     def test_scanned_OGM(self):
         params = {
             "client_id": u"059999",
@@ -128,6 +141,44 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.assertTrue(self.rep9.is_email())
         self.assertEqual(api.content.get_state(self.rep9), "signed")
         self.assertTrue(self.rep9[file_id].signed)
+        # PVS/PD/PC flags (read from the original file scan_user): PVS => no new file, only scan_date
+        # registered on the original file; PD => no outgoing_date; PC => no closing transition
+        sid7 = self.rep7["1"].scan_id
+        self.rep7["1"].scan_user = u"PC|PD|PVS"
+        rep7_state = api.content.get_state(self.rep7)
+        params["external_id"] = sid7
+        params["file_metadata"]["filename"] = u"whatever.pdf"
+        self.consume_ogm(params)
+        self.assertEqual(self.rep7.objectIds(), ["1"])  # PVS => no new file
+        self.assertEqual(self.rep7["1"].scan_date.strftime("%Y-%m-%d %H:%M"), "2021-05-18 13:16")
+        self.assertIsNone(self.rep7.outgoing_date)  # PD => no outgoing_date
+        self.assertEqual(api.content.get_state(self.rep7), rep7_state)  # PC => no transition
+        # manually signed file + scan_date delta > 20h + not PVS => new sending => new file created
+        self.rep7["1"].scan_user = u""
+        self._mark_manually_signed(self.rep7, "1", datetime.datetime(2021, 5, 15, 10, 0))
+        self.consume_ogm(params)
+        self.assertEqual(len(self.rep7.objectIds()), 2)  # new file created
+        new_id = [i for i in self.rep7.objectIds() if i != "1"][0]
+        self.assertFalse(self.rep7[new_id].esigned)
+        # manually signed file + delta > 20h + PVS => file not considered (nothing created/changed)
+        sid6 = self.rep6["1"].scan_id
+        self._mark_manually_signed(self.rep6, "1", datetime.datetime(2021, 5, 15, 10, 0))
+        self.rep6["1"].scan_user = u"PVS"
+        rep6_uid = self.rep6["1"].UID()
+        params["external_id"] = sid6
+        self.consume_ogm(params)
+        self.assertEqual(self.rep6.objectIds(), ["1"])  # PVS => not considered
+        self.assertEqual(self.rep6["1"].UID(), rep6_uid)
+        # manually signed file + delta < 20h + older incoming version => update skipped
+        self.rep6["1"].scan_user = u""
+        self.rep6["1"].scan_date = datetime.datetime(2021, 5, 18, 12, 0)  # delta < 20h
+        self.rep6["1"].version = 5
+        rep6_size = self.rep6["1"].file.size
+        params["version"] = 1
+        self.consume_ogm(params)
+        self.assertEqual(self.rep6.objectIds(), ["1"])
+        self.assertEqual(self.rep6["1"].UID(), rep6_uid)  # not replaced
+        self.assertEqual(self.rep6["1"].file.size, rep6_size)
 
     def test_esigned_OGM(self):
         params = {
@@ -151,6 +202,14 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         }
         self.assertEqual(len(self.pc(portal_type="dmsoutgoingmail")), 9)
         self.assertEqual(len(self.pc(portal_type="dmsommainfile")), 9)
+        # esign document whose uid cannot be resolved from the filename => file left untouched
+        err_params = deepcopy(params)
+        err_params["file_metadata"]["filename"] = u"noparts.pdf"  # no "__" => uid None
+        self.consume_ogm(err_params)
+        self.assertEqual(self.rep8.objectIds(), ["1"])
+        err_params["file_metadata"]["filename"] = u"doc__missinguid-1.pdf"  # "-" rename, uid not categorized
+        self.consume_ogm(err_params)
+        self.assertEqual(self.rep8.objectIds(), ["1"])
         # we modify rep8 to set approvers and esign
         self.assertEqual(self.rep8.objectIds(), ["1"])
         self.assertTrue(self.rep8["1"].to_sign)
@@ -319,6 +378,58 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.assertEqual(api.content.get_state(self.rep7), "signed")
         self.assertEqual(sessions["sessions"][2]["files"][1]["status"], "received")
         self.assertEqual(sessions["sessions"][2]["state"], "finalized")
+
+    def test_scanned_does_not_overwrite_esigned(self):
+        # an esign signature has begun but the file is manually scanned and sent back.
+        # The esigned file must be preserved and a new scanned file created alongside.
+        the_file = self.rep8["1"]
+        the_file.signed = True
+        the_file.esigned = True
+        ce = self.rep8.categorized_elements[the_file.UID()]
+        ce["signed"] = True
+        ce["esigned"] = True
+        ce["scan_id"] = the_file.scan_id
+        self.rep8._p_changed = True
+        esigned_uid = the_file.UID()
+        self.assertEqual(self.rep8.objectIds(), ["1"])
+        params = {
+            "client_id": u"059999",
+            "external_id": u"012999900000008",  # rep8 file 1
+            "type": u"COUR_S_GEN",
+            "version": 1,
+            "date": datetime.datetime(2021, 5, 18),
+            "update_date": None,
+            "user": u"testuser",
+            "file_md5": u"",
+            "file_metadata": {
+                u"creator": u"scanner",
+                u"scan_hour": u"13:16:29",
+                u"scan_date": u"2021-05-18",
+                u"filemd5": u"",
+                u"filename": u"012999900000008.pdf",
+                u"pc": u"pc-scan01",  # scanned, not "_api_esign_"
+                u"user": u"testuser",
+                u"filesize": 7910,
+            },
+        }
+        self.consume_ogm(params)
+        # esigned file preserved (not overwritten), new scanned file created alongside
+        self.assertEqual(len(self.rep8.objectIds()), 2)
+        self.assertEqual(self.rep8["1"].UID(), esigned_uid)
+        self.assertTrue(self.rep8["1"].esigned)
+        new_id = [i for i in self.rep8.objectIds() if i != "1"][0]
+        self.assertFalse(self.rep8[new_id].esigned)
+        # Other case: e-signature was started (esign=True) but the electronic file never came back
+        # (no file is esigned). The scanned file is simply created.
+        self.rep9.esign = True
+        self.assertFalse(getattr(self.rep9["1"], "esigned", False))
+        self.assertEqual(self.rep9.objectIds(), ["1"])
+        params["external_id"] = u"012999900000009"  # rep9 file 1
+        params["file_metadata"]["filename"] = u"012999900000009.pdf"
+        self.consume_ogm(params)
+        self.assertEqual(len(self.rep9.objectIds()), 2)  # scanned file created as usual
+        new_id9 = [i for i in self.rep9.objectIds() if i != "1"][0]
+        self.assertFalse(self.rep9[new_id9].esigned)
 
     def tearDown(self):
         # print("removing:" + self.tdir)
