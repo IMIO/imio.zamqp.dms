@@ -11,7 +11,6 @@ from collective.documentviewer.convert import Converter
 from collective.iconifiedcategory.utils import calculate_category_id
 from collective.zamqp.consumer import Consumer
 from imio.dms.mail import IM_EDITOR_SERVICE_FUNCTIONS
-from imio.dms.mail.adapters import approval_adapter
 from imio.dms.mail.interfaces import IPersonnelContact
 from imio.dms.mail.utils import create_period_folder
 from imio.dms.mail.utils import get_dms_config
@@ -384,7 +383,7 @@ class OutgoingGeneratedMail(DMSMainFile, CommonMethods):
                 final_state = None
                 if self.obj.metadata["scanner"] == u"_api_esign_":
                     # get all pdf files
-                    f_uids = approval_adapter(self.document).pdf_files_uids
+                    f_uids = self.document.approval().pdf_files_uids
                     if all([cat_elems.get(f_uid) and cat_elems[f_uid]["signed"] for lst in f_uids for f_uid in lst]):
                         # we try to set as signed
                         final_state = "signed"
