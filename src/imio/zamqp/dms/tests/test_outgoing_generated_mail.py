@@ -46,7 +46,7 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.rep8 = get_object(oid="reponse8", ptype="dmsoutgoingmail")
         self.rep9 = get_object(oid="reponse9", ptype="dmsoutgoingmail")
         self.portal.portal_setup.runImportStepFromProfile(
-            "profile-imio.dms.mail:singles", "imiodmsmail-activate-esigning", run_dependencies=False
+            "profile-imio.dms.mail:singles", "imiodmsmail-activate-om-signing", run_dependencies=False
         )
         api.portal.set_registry_record("imio.esign.file_url", "http://localhost/test")
 

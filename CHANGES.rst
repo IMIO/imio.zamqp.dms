@@ -13,6 +13,8 @@ Changelog
   [sgeulette]
 - Fixed omail update when involved in approval.
   [chris-adam]
+- Updated OutgoingGeneratedMail consumer to handle sign_request
+  [sgeulette]
 
 0.25.0 (2026-06-19)
 -------------------
