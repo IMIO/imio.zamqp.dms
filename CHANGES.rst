@@ -15,6 +15,8 @@ Changelog
   [chris-adam]
 - Updated OutgoingGeneratedMail consumer to handle sign_request
   [sgeulette]
+- Ignored an incoming email when scan_id already exists
+  [sgeulette]
 
 0.25.0 (2026-06-19)
 -------------------

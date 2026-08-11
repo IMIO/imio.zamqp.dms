@@ -488,6 +488,10 @@ class IncomingEmail(DMSMainFile, CommonMethods):
         pass
 
     def create_or_update(self):
+        if self.existing_file is not None:
+            # already imported: nothing to redo, the message must be acked to leave the queue
+            log.error("file already exists with scan_id '{0}' => ignored".format(self.scan_fields.get("scan_id")))
+            return
         mf_tup, maildata, attachments = self.extract_tar(self.file_content)
         # maildata = {
         # u'Origin': u'Agent forward',
