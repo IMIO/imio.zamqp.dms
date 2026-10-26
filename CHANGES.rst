@@ -6,6 +6,7 @@ Changelog
 -------------------
 
 - Named the incoming email dms file '<scan_id>.pdf' (or '.eml') instead of 'email.pdf' (DMS-1235).
+- Set the incoming email creating group from the `iemail_creating_group` rules (DMS-1252).
   [chris-adam]
 
 
