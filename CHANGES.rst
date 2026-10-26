@@ -5,7 +5,8 @@ Changelog
 0.26.1 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Set the incoming email creating group from the `iemail_creating_group` rules (DMS-1252).
+  [chris-adam]
 
 
 0.26.0 (2026-08-14)

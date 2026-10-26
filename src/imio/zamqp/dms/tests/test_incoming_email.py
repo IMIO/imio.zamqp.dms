@@ -2,6 +2,7 @@
 from collective.wfadaptations.api import add_applied_adaptation
 from copy import deepcopy
 from imio.dataexchange.core.dms import IncomingEmail as CoreIncomingEmail
+from imio.dms.mail.Extensions.demo import activate_group_encoder
 from imio.dms.mail.testing import DMSMAIL_INTEGRATION_TESTING
 from imio.dms.mail.utils import group_has_user
 from imio.dms.mail.wfadaptations import IMServiceValidation
@@ -614,6 +615,123 @@ class TestIncomingEmail(BaseTestClass):
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["secretariat"].UID())
         self.assertEqual(obj.assigned_user, "encodeur")
         self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
+
+    def test_IncomingEmail_creating_group(self):
+        params = {
+            "client_id": u"019999",
+            "type": u"EMAIL_E",
+            "version": 1,
+            "date": datetime.datetime(2021, 5, 18),
+            "update_date": None,
+            "user": u"testuser",
+            "file_md5": u"",
+            "file_metadata": {
+                u"creator": u"scanner",
+                u"scan_hour": u"13:16:29",
+                u"scan_date": u"2021-05-18",
+                u"filemd5": u"",
+                u"filename": u"01Z999900000001.tar",
+                u"pc": u"pc-scan01",
+                u"user": u"testuser",
+                u"filesize": 0,
+            },
+        }
+        metadata = {
+            "From": [["Jean Courant", "jean.courant@electrabel.eb"]],
+            "To": [["", "debra.morgan@mpd.am"]],
+            "Cc": [],
+            "Subject": "Bloodstain pattern analysis",
+            "Origin": "Agent forward",
+            "Agent": [["Agent", "agent@macommune.be"]],
+        }
+        sec = self.pgof["direction-generale"]["secretariat"].UID()
+        ev = self.pgof["evenements"].UID()
+        grh = self.pgof["direction-generale"]["grh"].UID()
+        routing_key = "imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_routing"
+        routing = [
+            {
+                u"forward": u"agent",
+                u"transfer_email_pat": u"",
+                u"original_email_pat": u"",
+                u"tal_condition_1": u"",
+                u"user_value": u"_empty_",
+                u"tal_condition_2": u"",
+                u"tg_value": ev,
+            },
+        ]
+        api.portal.set_registry_record(routing_key, routing)
+        cg_key = "imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_creating_group"
+        rule = {
+            u"forward": u"agent",
+            u"transfer_email_pat": u"",
+            u"original_email_pat": u"",
+            u"tal_condition_1": u"",
+            u"cg_value": u"_treating_group_",
+        }
+        api.portal.set_registry_record(cg_key, [rule])
+        # group encoding off: rules are ignored
+        obj = self.consume_incoming_email(params, metadata)
+        self.assertIsNone(getattr(obj, "creating_group", None))
+        # secretariat (encodeur) and evenements (agent1) become creating groups
+        activate_group_encoder(self.portal)
+        rule["cg_value"] = ev
+        api.portal.set_registry_record(cg_key, [rule])
+        obj = self.consume_incoming_email(params, metadata)
+        self.assertEqual(obj.creating_group, ev)
+        # no rule applies: first creating group
+        rule["tal_condition_1"] = u"python:False"
+        api.portal.set_registry_record(cg_key, [rule])
+        obj = self.consume_incoming_email(params, metadata)
+        self.assertEqual(obj.creating_group, sec)
+        # condition on routing result
+        rule["tal_condition_1"] = u"python:treating_groups == '{}' and assigned_user is None".format(ev)
+        api.portal.set_registry_record(cg_key, [rule])
+        obj = self.consume_incoming_email(params, metadata)
+        self.assertEqual(obj.creating_group, ev)
+        # transferer in no creating group: next rule
+        rule["tal_condition_1"] = u""
+        rules = [dict(rule, cg_value=u"_transferer_"), dict(rule, cg_value=ev)]
+        api.portal.set_registry_record(cg_key, rules)
+        obj = self.consume_incoming_email(params, metadata)
+        self.assertEqual(obj.creating_group, ev)
+        # transferer in one creating group
+        api.group.add_user(groupname="{}_group_encoder".format(ev), username="agent")
+        rules[1]["cg_value"] = sec
+        api.portal.set_registry_record(cg_key, rules)
+        obj = self.consume_incoming_email(params, metadata)
+        self.assertEqual(obj.creating_group, ev)
+        # transferer in several creating groups: organization order
+        api.group.add_user(groupname="{}_group_encoder".format(sec), username="agent")
+        rules[1]["cg_value"] = ev
+        api.portal.set_registry_record(cg_key, rules)
+        obj = self.consume_incoming_email(params, metadata)
+        self.assertEqual(obj.creating_group, sec)
+        # transferer in several creating groups: primary organization first
+        self.pf["agent"].primary_organization = ev
+        rules[1]["cg_value"] = sec
+        api.portal.set_registry_record(cg_key, rules)
+        obj = self.consume_incoming_email(params, metadata)
+        self.assertEqual(obj.creating_group, ev)
+        # following treating group
+        rules = [dict(rule, cg_value=u"_treating_group_"), dict(rule, cg_value=sec)]
+        api.portal.set_registry_record(cg_key, rules)
+        obj = self.consume_incoming_email(params, metadata)
+        self.assertEqual(obj.creating_group, ev)
+        # treating group not a creating group: next rule
+        routing[0]["tg_value"] = grh
+        api.portal.set_registry_record(routing_key, routing)
+        rules[1]["cg_value"] = ev
+        api.portal.set_registry_record(cg_key, rules)
+        obj = self.consume_incoming_email(params, metadata)
+        self.assertEqual(obj.treating_groups, grh)
+        self.assertEqual(obj.creating_group, ev)
+        # defined creating group without encoder: next rule
+        api.group.remove_user(groupname="{}_group_encoder".format(sec), username="encodeur")
+        api.group.remove_user(groupname="{}_group_encoder".format(sec), username="agent")
+        rules = [dict(rule, cg_value=sec), dict(rule, cg_value=ev)]
+        api.portal.set_registry_record(cg_key, rules)
+        obj = self.consume_incoming_email(params, metadata)
+        self.assertEqual(obj.creating_group, ev)
 
     def tearDown(self):
         print("removing:" + self.tdir)
