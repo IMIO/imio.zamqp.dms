@@ -10,8 +10,8 @@ from collective.dms.mailcontent.dmsmail import internalReferenceIncomingMailDefa
 from collective.documentviewer.convert import Converter
 from collective.iconifiedcategory.utils import calculate_category_id
 from collective.zamqp.consumer import Consumer
-from imio.dms.mail import CREATING_GROUP_SUFFIX
 from imio.dms.mail import IM_EDITOR_SERVICE_FUNCTIONS
+from imio.dms.mail.browser.settings import default_creating_group
 from imio.dms.mail.interfaces import IPersonnelContact
 from imio.dms.mail.utils import create_period_folder
 from imio.dms.mail.utils import get_dms_config
@@ -619,22 +619,15 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 elif len(users) == 1:
                     agent_id = users.keys()[0]
 
+            # tal context of config rules
+            extra = {"maildata": maildata, "agent_id": agent_id}
+            if agent_id:
+                extra["member"] = api.user.get(agent_id)
+
             # routing rules from config
             rt = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_routing")
             for dic in rt or []:
-                # check transfer_email
-                if dic["transfer_email_pat"] and dic["transfer_email_pat"].strip():
-                    if agent_email and not re.match(dic["transfer_email_pat"].strip(), agent_email):
-                        continue
-                # check original email sender
-                if dic["original_email_pat"] and dic["original_email_pat"].strip():
-                    if oes_eml and not re.match(dic["original_email_pat"].strip(), oes_eml):
-                        continue
-                # check condition 1
-                extra = {"maildata": maildata, "agent_id": agent_id}
-                if agent_id:
-                    extra["member"] = api.user.get(agent_id)
-                if not _evaluateExpression(self.folder, expression=dic["tal_condition_1"], extra_expr_ctx=extra):
+                if not self.rule_matches(dic, agent_email, oes_eml, extra):
                     continue
                 # assigned_user value
                 if dic["user_value"] == "_transferer_":
@@ -644,8 +637,8 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 else:
                     assigned_user = dic["user_value"]
                 # check condition 2
-                extra["assigned_user"] = assigned_user
-                if not _evaluateExpression(self.folder, expression=dic["tal_condition_2"], extra_expr_ctx=extra):
+                if not _evaluateExpression(self.folder, expression=dic["tal_condition_2"],
+                                           extra_expr_ctx=dict(extra, assigned_user=assigned_user)):
                     continue
                 # treating_groups value
                 if dic["tg_value"] == "_uni_org_only_":
@@ -716,35 +709,16 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 factory = getUtility(IVocabularyFactory, u"imio.dms.mail.ActiveCreatingGroupVocabulary")
                 active_cgs = [term.value for term in factory(self.folder)]
                 cgs = api.portal.get_registry_record(
-                    "imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_creating_group")
+                    "imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_creating_group", default=None)
+                cg_extra = dict(extra, assigned_user=document.assigned_user, treating_groups=document.treating_groups)
                 for dic in cgs or []:
-                    # check transfer_email
-                    if dic["transfer_email_pat"] and dic["transfer_email_pat"].strip():
-                        if agent_email and not re.match(dic["transfer_email_pat"].strip(), agent_email):
-                            continue
-                    # check original email sender
-                    if dic["original_email_pat"] and dic["original_email_pat"].strip():
-                        if oes_eml and not re.match(dic["original_email_pat"].strip(), oes_eml):
-                            continue
-                    # check condition 1
-                    extra = {"maildata": maildata, "agent_id": agent_id, "assigned_user": document.assigned_user,
-                             "treating_groups": document.treating_groups}
-                    if agent_id:
-                        extra["member"] = api.user.get(agent_id)
-                    if not _evaluateExpression(self.folder, expression=dic["tal_condition_1"], extra_expr_ctx=extra):
+                    if not self.rule_matches(dic, agent_email, oes_eml, cg_extra):
                         continue
                     # creating group value
                     cg = None
                     if dic["cg_value"] == "_transferer_":
                         if agent_id:
-                            agent_orgs = organizations_with_suffixes(get_plone_groups_for_user(user_id=agent_id),
-                                                                     [CREATING_GROUP_SUFFIX], group_as_str=True)
-                            agent_cgs = [org for org in active_cgs if org in agent_orgs]
-                            person = get_person_from_userid(agent_id, unrestricted=True)
-                            if person and person.primary_organization in agent_cgs:
-                                cg = person.primary_organization
-                            elif agent_cgs:
-                                cg = agent_cgs[0]
+                            cg = default_creating_group(extra["member"], strict=True)
                     elif dic["cg_value"] == "_treating_group_":
                         cg = document.treating_groups
                     else:
@@ -759,19 +733,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             trs = []
             ss = api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_state_set")
             for dic in ss or []:
-                # check transfer_email
-                if dic["transfer_email_pat"] and dic["transfer_email_pat"].strip():
-                    if agent_email and not re.match(dic["transfer_email_pat"].strip(), agent_email):
-                        continue
-                # check original email sender
-                if dic["original_email_pat"] and dic["original_email_pat"].strip():
-                    if oes_eml and not re.match(dic["original_email_pat"].strip(), oes_eml):
-                        continue
-                # check condition 1
-                extra = {"maildata": maildata, "agent_id": agent_id}
-                if agent_id:
-                    extra["member"] = api.user.get(agent_id)
-                if not _evaluateExpression(self.folder, expression=dic["tal_condition_1"], extra_expr_ctx=extra):
+                if not self.rule_matches(dic, agent_email, oes_eml, extra):
                     continue
                 # state value
                 s_v = dic["state_value"]
@@ -865,3 +827,16 @@ class IncomingEmail(DMSMainFile, CommonMethods):
         }
         file_metadata.update(self.scan_fields)
         return file_metadata
+
+    def rule_matches(self, rule, agent_email, oes_eml, extra):
+        """Check the email patterns and the TAL condition of an incoming email config rule"""
+        # check transfer_email
+        if rule["transfer_email_pat"] and rule["transfer_email_pat"].strip():
+            if agent_email and not re.match(rule["transfer_email_pat"].strip(), agent_email):
+                return False
+        # check original email sender
+        if rule["original_email_pat"] and rule["original_email_pat"].strip():
+            if oes_eml and not re.match(rule["original_email_pat"].strip(), oes_eml):
+                return False
+        # check condition 1
+        return _evaluateExpression(self.folder, expression=rule["tal_condition_1"], extra_expr_ctx=extra)
