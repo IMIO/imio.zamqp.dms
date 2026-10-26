@@ -10,6 +10,7 @@ from collective.dms.mailcontent.dmsmail import internalReferenceIncomingMailDefa
 from collective.documentviewer.convert import Converter
 from collective.iconifiedcategory.utils import calculate_category_id
 from collective.zamqp.consumer import Consumer
+from imio.dms.mail import CREATING_GROUP_SUFFIX
 from imio.dms.mail import IM_EDITOR_SERVICE_FUNCTIONS
 from imio.dms.mail.interfaces import IPersonnelContact
 from imio.dms.mail.utils import create_period_folder
@@ -709,6 +710,49 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 document.assigned_user = None
             elif assigned_user:
                 document.assigned_user = assigned_user
+
+            # creating group rules from config
+            if api.portal.get_registry_record("imio.dms.mail.browser.settings.IImioDmsMailConfig.imail_group_encoder"):
+                factory = getUtility(IVocabularyFactory, u"imio.dms.mail.ActiveCreatingGroupVocabulary")
+                active_cgs = [term.value for term in factory(self.folder)]
+                cgs = api.portal.get_registry_record(
+                    "imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_creating_group")
+                for dic in cgs or []:
+                    # check transfer_email
+                    if dic["transfer_email_pat"] and dic["transfer_email_pat"].strip():
+                        if agent_email and not re.match(dic["transfer_email_pat"].strip(), agent_email):
+                            continue
+                    # check original email sender
+                    if dic["original_email_pat"] and dic["original_email_pat"].strip():
+                        if oes_eml and not re.match(dic["original_email_pat"].strip(), oes_eml):
+                            continue
+                    # check condition 1
+                    extra = {"maildata": maildata, "agent_id": agent_id, "assigned_user": document.assigned_user,
+                             "treating_groups": document.treating_groups}
+                    if agent_id:
+                        extra["member"] = api.user.get(agent_id)
+                    if not _evaluateExpression(self.folder, expression=dic["tal_condition_1"], extra_expr_ctx=extra):
+                        continue
+                    # creating group value
+                    cg = None
+                    if dic["cg_value"] == "_transferer_":
+                        if agent_id:
+                            agent_orgs = organizations_with_suffixes(get_plone_groups_for_user(user_id=agent_id),
+                                                                     [CREATING_GROUP_SUFFIX], group_as_str=True)
+                            agent_cgs = [org for org in active_cgs if org in agent_orgs]
+                            person = get_person_from_userid(agent_id, unrestricted=True)
+                            if person and person.primary_organization in agent_cgs:
+                                cg = person.primary_organization
+                            elif agent_cgs:
+                                cg = agent_cgs[0]
+                    elif dic["cg_value"] == "_treating_group_":
+                        cg = document.treating_groups
+                    else:
+                        cg = dic["cg_value"]
+                    # a rule without usable creating group passes to the next one
+                    if cg in active_cgs:
+                        document.creating_group = cg
+                        break
 
             # state set rules from config
             to_state = None
