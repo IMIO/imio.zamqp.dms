@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import shutil
 from copy import deepcopy
 from imio.dataexchange.core.dms import IncomingMail as CoreIncomingMail
 from imio.dms.mail.testing import DMSMAIL_INTEGRATION_TESTING
@@ -11,6 +10,7 @@ from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
 
 import datetime
+import shutil
 import tempfile
 import time
 

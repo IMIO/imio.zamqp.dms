@@ -600,9 +600,9 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                 for brain in results:
                     obj = brain._unrestrictedGetObject()
                     person = obj.get_person()
-                    org = obj.get_organization().UID()
-                    if org in active_orgs:
-                        users.setdefault(person.userid, set()).add(org)
+                    org_uid = obj.get_organization().UID()
+                    if org_uid in active_orgs:
+                        users.setdefault(person.userid, set()).add(org_uid)
                 if not users:
                     for udic in get_user_from_criteria(self.site, email=agent_email):
                         if udic["email"].lower() != agent_email:  # to be sure email is not a part of longer email

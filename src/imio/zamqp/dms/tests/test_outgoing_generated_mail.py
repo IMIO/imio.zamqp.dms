@@ -339,14 +339,15 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.assertEqual(len(oma.files_uids), 2)
         self.assertEqual(oma.annot["approval"], [])
         self.assertListEqual(oma.annot["session_ids"].data, [2])
+        # main files are ordered newest first: rep7["2"] is before rep7["1"]
         # pdf file has been generated
         filename1 = u"Accusé de réception"
         filename2 = u"Réponse salle"
         ext_id1 = u"012999900000007"
         ext_id2 = u"012999900000010"
         self.assertEqual(self.rep7.objectIds(), ["1", "2"])
-        self.assertTrue(sessions["sessions"][2]["files"][0]["filename"].startswith(filename1))
-        self.assertTrue(sessions["sessions"][2]["files"][1]["filename"].startswith(filename2))
+        self.assertTrue(sessions["sessions"][2]["files"][1]["filename"].startswith(filename1))
+        self.assertTrue(sessions["sessions"][2]["files"][0]["filename"].startswith(filename2))
         uid1 = self.rep7["1"].UID()
         uid2 = self.rep7["2"].UID()
         self.assertIn(uid1, sessions['uids'])
@@ -354,29 +355,29 @@ class TestOutgoingGeneratedMail(BaseTestClass):
         self.assertEqual(len(sessions["sessions"]), 3)
         self.assertEqual(sessions["sessions"][2]["state"], "draft")  # but in reality, it will be updated
         self.assertEqual(len(sessions["sessions"][2]["files"]), 2)
-        self.assertEqual(sessions["sessions"][2]["files"][0]["status"], "")
         self.assertEqual(sessions["sessions"][2]["files"][1]["status"], "")
-        self.assertTrue(sessions["sessions"][2]["files"][0]["filename"].endswith(u"__{}.pdf".format(uid1)))
-        self.assertTrue(sessions["sessions"][2]["files"][1]["filename"].endswith(u"__{}.pdf".format(uid2)))
+        self.assertEqual(sessions["sessions"][2]["files"][0]["status"], "")
+        self.assertTrue(sessions["sessions"][2]["files"][1]["filename"].endswith(u"__{}.pdf".format(uid1)))
+        self.assertTrue(sessions["sessions"][2]["files"][0]["filename"].endswith(u"__{}.pdf".format(uid2)))
         # we will consume first file
-        params["file_metadata"]["filename"] = sessions["sessions"][2]["files"][0]["filename"]
+        params["file_metadata"]["filename"] = sessions["sessions"][2]["files"][1]["filename"]
         params["external_id"] = ext_id1
         old_file_size = self.rep7["1"].file.size
         self.consume_ogm(params)
         self.assertEqual(self.rep7["1"].signed, True)
         self.assertNotEqual(self.rep7["1"].file.size, old_file_size)
         self.assertEqual(api.content.get_state(self.rep7), "to_be_signed")
-        self.assertEqual(sessions["sessions"][2]["files"][0]["status"], "received")
+        self.assertEqual(sessions["sessions"][2]["files"][1]["status"], "received")
         self.assertEqual(sessions["sessions"][2]["state"], "draft")
-        # we will consume second file (accuse de reception)
-        params["file_metadata"]["filename"] = sessions["sessions"][2]["files"][1]["filename"]
+        # we will consume second file (reponse salle)
+        params["file_metadata"]["filename"] = sessions["sessions"][2]["files"][0]["filename"]
         params["external_id"] = ext_id2
         old_file_size = self.rep7["2"].file.size
         self.consume_ogm(params)
         self.assertEqual(self.rep7["2"].signed, True)
         self.assertNotEqual(self.rep7["2"].file.size, old_file_size)
         self.assertEqual(api.content.get_state(self.rep7), "signed")
-        self.assertEqual(sessions["sessions"][2]["files"][1]["status"], "received")
+        self.assertEqual(sessions["sessions"][2]["files"][0]["status"], "received")
         self.assertEqual(sessions["sessions"][2]["state"], "finalized")
 
     def test_scanned_does_not_overwrite_esigned(self):

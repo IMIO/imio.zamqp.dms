@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import shutil
-
 from collective.iconifiedcategory.utils import calculate_category_id
 from copy import deepcopy
 from imio.dataexchange.core.dms import OutgoingMail as CoreOutgoingMail
@@ -14,6 +12,7 @@ from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
 
 import datetime
+import shutil
 import tempfile
 import time
 
