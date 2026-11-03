@@ -5,7 +5,8 @@ Changelog
 0.26.1 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Named the incoming email dms file '<scan_id>.pdf' (or '.eml') instead of 'email.pdf' (DMS-1235).
+  [chris-adam]
 
 
 0.26.0 (2026-08-14)

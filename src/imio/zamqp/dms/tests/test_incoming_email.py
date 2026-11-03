@@ -35,7 +35,7 @@ class TestIncomingEmail(BaseTestClass):
         # print(self.tdir)
         self.external_id_suffix = 1  # up to 99 possible ids
 
-    def consume_incoming_email(self, params, metadata):
+    def consume_incoming_email(self, params, metadata, main="email.pdf"):
         from imio.zamqp.dms.consumer import IncomingEmail  # import later to avoid core config error
 
         params = deepcopy(params)
@@ -45,7 +45,7 @@ class TestIncomingEmail(BaseTestClass):
         self.external_id_suffix += 1
         msg = create_fake_message(CoreIncomingEmail, params)
         ie = IncomingEmail("incoming-mail", "dmsincoming_email", msg)
-        store_fake_content(self.tdir, IncomingEmail, params, metadata)
+        store_fake_content(self.tdir, IncomingEmail, params, metadata, main=main)
 
         # Create incoming mail from message
         time.sleep(1)  # to avoid same created date for all created objects
@@ -614,6 +614,50 @@ class TestIncomingEmail(BaseTestClass):
         self.assertEqual(obj.treating_groups, self.pgof["direction-generale"]["secretariat"].UID())
         self.assertEqual(obj.assigned_user, "encodeur")
         self.check_categorized_element(obj, 1, **{"category_id": "incoming-dms-file"})
+
+    def test_extract_tar(self):
+        params = {
+            "client_id": u"019999",
+            "type": u"EMAIL_E",
+            "version": 1,
+            "date": datetime.datetime(2021, 5, 18),
+            "update_date": None,
+            "user": u"testuser",
+            "file_md5": u"",
+            "file_metadata": {
+                u"creator": u"scanner",
+                u"scan_hour": u"13:16:29",
+                u"scan_date": u"2021-05-18",
+                u"filemd5": u"",
+                u"filename": u"01Z999900000001.tar",
+                u"pc": u"pc-scan01",
+                u"user": u"testuser",
+                u"filesize": 0,
+            },
+        }
+        metadata = {
+            "From": [["Jean Courant", "jean.courant@electrabel.eb"]],
+            "To": [["", "debra.morgan@mpd.am"]],
+            "Cc": [],
+            "Subject": "Bloodstain pattern analysis",
+            "Origin": "Agent forward",
+            "Agent": [["Agent", "agent@macommune.be"]],
+        }
+        # the dms file is named after the scan id
+        params["external_id"] = u"01Z999900000021"
+        obj = self.consume_incoming_email(params, metadata)
+        dfile = obj.listFolderContents({"portal_type": "dmsmainfile"})[0]
+        self.assertEqual(dfile.scan_id, u"01Z999900000021")
+        self.assertEqual(dfile.Title(), u"01Z999900000021.pdf")
+        self.assertEqual(dfile.file.filename, u"01Z999900000021.pdf")
+        self.assertEqual(dfile.getId(), "01z999900000021.pdf")
+        # an eml archive keeps the eml extension
+        params["external_id"] = u"01Z999900000022"
+        obj = self.consume_incoming_email(params, metadata, main="email.eml")
+        dfile = obj.listFolderContents({"portal_type": "dmsmainfile"})[0]
+        self.assertEqual(dfile.Title(), u"01Z999900000022.eml")
+        self.assertEqual(dfile.file.filename, u"01Z999900000022.eml")
+        self.assertEqual(dfile.getId(), "01z999900000022.eml")
 
     def tearDown(self):
         print("removing:" + self.tdir)

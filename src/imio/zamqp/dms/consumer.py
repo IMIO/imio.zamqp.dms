@@ -470,9 +470,8 @@ class IncomingEmail(DMSMainFile, CommonMethods):
         archive_file = BytesIO(archive_content)
         tar = tarfile.open(fileobj=archive_file)
         files = tar.getnames()
-        filename = "email.pdf"
-        if "email.eml" in files:
-            filename = "email.eml"
+        main = "email.eml" if "email.eml" in files else "email.pdf"
+        filename = u"{0}.{1}".format(self.scan_fields.get("scan_id") or "email", main.split(".")[-1])
         metadata = json.loads(tar.extractfile("metadata.json").read())
         attachments = [
             {
@@ -482,7 +481,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
             for member in tar.getmembers()
             if member.path.startswith("/attachments/")  # noqa
         ]
-        return (safe_unicode(filename), tar.extractfile(filename).read()), metadata, attachments
+        return (filename, tar.extractfile(main).read()), metadata, attachments
 
     def create(self, obj_file):
         pass
