@@ -723,7 +723,7 @@ class IncomingEmail(DMSMainFile, CommonMethods):
                     else:
                         cg = dic["cg_value"]
                     # a rule without usable creating group passes to the next one
-                    if cg in active_cgs:
+                    if cg and cg in active_cgs:
                         document.creating_group = cg
                         break
 

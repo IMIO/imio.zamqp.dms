@@ -660,36 +660,35 @@ class TestIncomingEmail(BaseTestClass):
         self.assertEqual(dfile.file.filename, u"01Z999900000022.eml")
         self.assertEqual(dfile.getId(), "01z999900000022.eml")
 
-
-def test_IncomingEmail_creating_group(self):
-    params = {
-        "client_id": u"019999",
-        "type": u"EMAIL_E",
-        "version": 1,
-        "date": datetime.datetime(2021, 5, 18),
-        "update_date": None,
-        "user": u"testuser",
-        "file_md5": u"",
-        "file_metadata": {
-            u"creator": u"scanner",
-            u"scan_hour": u"13:16:29",
-            u"scan_date": u"2021-05-18",
-            u"filemd5": u"",
-            u"filename": u"01Z999900000001.tar",
-            u"pc": u"pc-scan01",
-            u"user": u"testuser",
-            u"filesize": 0,
-        },
-    }
-    metadata = {
-        "From": [["Jean Courant", "jean.courant@electrabel.eb"]],
-        "To": [["", "debra.morgan@mpd.am"]],
-        "Cc": [],
-        "Subject": "Bloodstain pattern analysis",
-        "Origin": "Agent forward",
-        "Agent": [["Agent", "agent@macommune.be"]],
-    }
-    sec = self.pgof["direction-generale"]["secretariat"].UID()
+    def test_IncomingEmail_creating_group(self):
+        params = {
+            "client_id": u"019999",
+            "type": u"EMAIL_E",
+            "version": 1,
+            "date": datetime.datetime(2021, 5, 18),
+            "update_date": None,
+            "user": u"testuser",
+            "file_md5": u"",
+            "file_metadata": {
+                u"creator": u"scanner",
+                u"scan_hour": u"13:16:29",
+                u"scan_date": u"2021-05-18",
+                u"filemd5": u"",
+                u"filename": u"01Z999900000001.tar",
+                u"pc": u"pc-scan01",
+                u"user": u"testuser",
+                u"filesize": 0,
+            },
+        }
+        metadata = {
+            "From": [["Jean Courant", "jean.courant@electrabel.eb"]],
+            "To": [["", "debra.morgan@mpd.am"]],
+            "Cc": [],
+            "Subject": "Bloodstain pattern analysis",
+            "Origin": "Agent forward",
+            "Agent": [["Agent", "agent@macommune.be"]],
+        }
+        sec = self.pgof["direction-generale"]["secretariat"].UID()
         ev = self.pgof["evenements"].UID()
         grh = self.pgof["direction-generale"]["grh"].UID()
         routing_key = "imio.dms.mail.browser.settings.IImioDmsMailConfig.iemail_routing"
@@ -770,11 +769,11 @@ def test_IncomingEmail_creating_group(self):
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.treating_groups, grh)
         self.assertEqual(obj.creating_group, ev)
-        # defined creating group without encoder: next rule
-        api.group.remove_user(groupname="{}_group_encoder".format(sec), username="encodeur")
-        api.group.remove_user(groupname="{}_group_encoder".format(sec), username="agent")
+        # defined creating group whose encoder group became empty: next rule
         rules = [dict(rule, cg_value=sec), dict(rule, cg_value=ev)]
         api.portal.set_registry_record(cg_key, rules)
+        api.group.remove_user(groupname="{}_group_encoder".format(sec), username="encodeur")
+        api.group.remove_user(groupname="{}_group_encoder".format(sec), username="agent")
         obj = self.consume_incoming_email(params, metadata)
         self.assertEqual(obj.creating_group, ev)
 
